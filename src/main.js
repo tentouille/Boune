@@ -25,6 +25,10 @@ const CFG = {
   nibbleChance: 0.10,
   chaseChance: 0.22,
   chaseRadius: 380,                // px logiques
+  followRadius: 330,               // suit le curseur dans ce rayon
+  followGap: 78,                   // s'arrête à cette distance du curseur
+  alertFlick: 85,                  // vitesse de curseur qui la fait sursauter
+  alertRadius: 240,
   scrollPatterns: /tiktok|reels|shorts/i,
   scrollOn: true,
   scrollLimitSec: 180,             // temps de doom-scroll toléré
@@ -202,6 +206,8 @@ let holdTimer = 0;
 let hop = null;                     // bond en cours { ph, t0, fromX, dx, peak, ... }
 let zoomLeft = 0;                   // dashes restants pendant les zoomies
 let airT0 = 0, airDur = 0, airPeak = 0; // arc vertical (binky)
+let alertUntil = 0, followUntil = 0;
+const INTERRUPTIBLE = new Set(["idle", "walk", "follow", "attentive", "lookout"]);
 let furniture = [];                 // [{uid,type,sx,sw}] positions physiques (fenêtre scène)
 let arriveCb = null;                // action à faire à l'arrivée d'une balade ciblée
 let nextPoop = Date.now() + 40e3;
@@ -215,7 +221,7 @@ const L = (px) => px * scale; // logique -> physique
 const now = () => Date.now();
 
 // ----- Utilitaires visuels -----
-const UPRIGHT = new Set(["surprised", "push", "held", "lookout", "treat", "groom"]);
+const UPRIGHT = new Set(["surprised", "push", "held", "lookout", "treat", "groom", "alert"]);
 function setPhase(ph) { if (ph) el.bunny.dataset.phase = ph; else delete el.bunny.dataset.phase; }
 function setState(s) {
   el.bunny.classList.remove(state);
@@ -346,6 +352,7 @@ function tick() {
     case "chase":
     case "mission":
     case "zoom":
+    case "follow":
       stepHop(t);
       break;
     case "binky": {
@@ -426,7 +433,7 @@ function hopParams() {
   const f = CFG.hopSpeed / 2.6;
   if (state === "mission") return { dist: rnd(58, 78), peak: L(rnd(34, 44)), crouch: 55, air: 260, land: 60, pause: rnd(10, 50) };
   if (state === "zoom")    return { dist: rnd(64, 86), peak: L(rnd(30, 40)), crouch: 45, air: 240, land: 55, pause: rnd(0, 30) };
-  if (state === "chase")   return { dist: rnd(46, 66), peak: L(rnd(28, 38)), crouch: 70, air: 300, land: 70, pause: rnd(30, 110) };
+  if (state === "chase" || state === "follow") return { dist: rnd(46, 66), peak: L(rnd(28, 38)), crouch: 65, air: 290, land: 65, pause: rnd(20, 80) };
   return { dist: rnd(30, 52) * f, peak: L(rnd(22, 30)), crouch: 120, air: 340, land: 90, pause: rnd(120, 320) / f };
 }
 function startHop() {
@@ -540,6 +547,7 @@ function arrived() {
     if (--zoomLeft > 0) return nextZoom();
     setState("idle"); nextThink = now() + rnd(2000, 4000); return;
   }
+  if (state === "follow") return;          // on continue de suivre, pollCursor décide quand s'arrêter
   if (arriveCb) { const cb = arriveCb; arriveCb = null; setState("idle"); return cb(); }
   const wasChase = state === "chase";
   setState("idle");
@@ -654,6 +662,7 @@ async function pollCursor() {
       stateTimer = setTimeout(() => { setState("idle"); nextThink = now() + 3000; }, 600);
     }
   }
+  const px = cursor.x, py = cursor.y;
   cursor.x = x; cursor.y = y;
 
   // Regard vers le curseur (petit décalage des yeux)
@@ -667,12 +676,51 @@ async function pollCursor() {
   if (state === "held") return;
   const r = el.bunny.getBoundingClientRect();
   const over =
-    x >= pos.x + L(r.left - 6) && x <= pos.x + L(r.right + 6) &&
-    y >= pos.y + L(r.top - 6) && y <= pos.y + L(r.bottom + 6);
+    x >= pos.x + L(r.left - 8) && x <= pos.x + L(r.right + 8) &&
+    y >= pos.y + L(r.top - 8) && y <= pos.y + L(r.bottom + 8);
   if (over !== hoverable) {
     hoverable = over;
     win.setIgnoreCursorEvents(!over).catch(() => {});
   }
+
+  // ---- Réactions au curseur ----
+  const speed = Math.abs(x - px) + Math.abs(y - py);
+  const dxc = x - centerX();
+  const near = Math.abs(dxc) < L(CFG.followRadius) && Math.abs(y - (pos.y + H / 2)) < L(300);
+  const calm = INTERRUPTIBLE.has(state);
+
+  // 1. Survol : elle s'arrête et te regarde -> facile à caresser
+  if (over && calm) { if (state !== "attentive") { arriveCb = null; setState("attentive"); } return; }
+  if (!over && state === "attentive") { setState("idle"); nextThink = now() + 1500; }
+
+  // 2. Mouvement brusque tout près : elle se dresse, en alerte
+  if (calm && speed > L(CFG.alertFlick) && Math.abs(dxc) < L(CFG.alertRadius) && now() > alertUntil) {
+    alertUntil = now() + 8000;
+    return startle();
+  }
+
+  // 3. Suivi du curseur
+  const moving = now() - cursor.lastMove < 1200;
+  if (calm && near && moving) {
+    followUntil = now() + 1400;
+    if (Math.abs(dxc) > L(CFG.followGap)) {
+      targetX = clamp(x - W / 2, minX, maxX);
+      if (state !== "follow") setState("follow");
+    } else if (state === "follow") {
+      setState("idle");
+    }
+  } else if (state === "follow" && now() > followUntil) {
+    setState("idle");
+    nextThink = now() + rnd(1500, 3500);
+  }
+}
+
+// Elle a vu quelque chose : se dresse sur les pattes arrière
+function startle() {
+  clearTimeout(stateTimer);
+  setState("alert");
+  say("!", 1100);
+  stateTimer = setTimeout(() => { setState("idle"); nextThink = now() + rnd(2000, 4500); }, rnd(1200, 2000));
 }
 
 // ----- Interaction directe : caresse / porter / lâcher -----
@@ -811,6 +859,7 @@ async function missionArrived() {
 }
 
 // ----- Fenêtre de réglages -----
+listen("quit-boune", () => invoke("quit").catch(() => {}));
 listen("settings-changed", ({ payload }) => applySettings(payload));
 listen("reset-progress", () => {
   save = { xp: 0, pets: 0, nibbles: 0, closes: 0, minutes: 0, createdAt: now(), crottes: 0, items: [] };

@@ -141,6 +141,9 @@
     <button class="ghost" id="defaults">Valeurs par défaut</button>
     <button class="danger" id="reset">Effacer la progression</button>
   </div>
+  <div class="actions" style="margin-top: 10px;">
+    <button class="danger" id="quit" style="flex: 1;">Quitter Boune 👋</button>
+  </div>
   <div id="saved"></div>
 
   <script>
@@ -203,6 +206,7 @@
         setTimeout(() => { delete e.target.dataset.armed; e.target.textContent = "Effacer la progression"; }, 3000);
       }
     });
+    $("quit").addEventListener("click", () => emit("quit-boune"));
     document.addEventListener("contextmenu", (e) => e.preventDefault());
 
     // ---------- Boutique / inventaire ----------

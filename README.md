@@ -11,6 +11,9 @@ Petit lapin compagnon qui se balade en bas de ton écran. Léger (Tauri 2 : ~35 
 - **Grignote** des trucs : le câble internet, celui de la souris, une carotte, un cookie…
 - **Anti doom-scroll** : si la fenêtre active contient `TikTok`, `Reels` ou `Shorts` pendant plus de 3 min, elle traverse l'écran, pousse la fenêtre et la **minimise** (réversible, tu la reprends depuis la barre des tâches). Puis 10 min de répit.
 - **Progression** : XP pour les câlins, grignotages, scrolls stoppés et temps passé ensemble. Niveau 3 → écharpe, 5 → nœud, 8 → couronne de fleurs.
+- **Suivi de la souris** : bouge le curseur près d'elle, elle te suit en bondissant ; survole-la, elle s'arrête et te regarde (clic gauche = caresse).
+- **Alerte** : un mouvement brusque du curseur près d'elle et elle se dresse sur ses pattes arrière, aux aguets.
+- **Quitter** : bouton « Quitter Boune » dans les Réglages (clic droit sur elle), ou menu de la barre système.
 - **Comportements de lapin** : bonds (pas de glissement), binky (saut de joie), flop (elle fond au sol), toilette, zoomies, nez qui frémit, moustaches, chinning (elle « marque » les meubles), thump (coup de patte agacé).
 - **Activités longues** : elle lit un livre, écoute de la musique, plante une carotte, regarde par la fenêtre… pendant 1 à 3 min. Un clic l'interrompt.
 - **Crottes 💩 = monnaie** : Boune en laisse au sol de temps en temps (plus souvent après avoir mangé). Clique dessus pour les ramasser.

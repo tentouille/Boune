@@ -91,8 +91,8 @@ html, body {
 
 /* ===== Locomotion par bonds : l'arc vertical est piloté en JS (la fenêtre
    monte et descend), le CSS ne fait que l'écrasement/étirement par phase ===== */
-.walk #sprite, .chase #sprite, .mission #sprite, .zoom #sprite { transition: transform .12s ease; }
-.walk .ear, .chase .ear, .mission .ear, .zoom .ear { transition: transform .14s ease; }
+.walk #sprite, .chase #sprite, .mission #sprite, .zoom #sprite, .follow #sprite { transition: transform .12s ease; }
+.walk .ear, .chase .ear, .mission .ear, .zoom .ear, .follow .ear { transition: transform .14s ease; }
 #bunny[data-phase="crouch"] #sprite { transform: scale(1.14, .84); }
 #bunny[data-phase="air"]    #sprite { transform: scale(.92, 1.10); }
 #bunny[data-phase="land"]   #sprite { transform: scale(1.18, .80); }
@@ -244,6 +244,15 @@ html, body {
 }
 .treat #sprite { animation: joy .35s ease-in-out 3; }
 .treat .eye-open { display: none; } .treat .eye-happy { display: block; }
+
+/* ===== Attentive : au survol, elle s'arrête et te regarde (pour la caresser) ===== */
+.attentive #sprite { animation: breathe 3.2s ease-in-out infinite; filter: drop-shadow(0 0 5px rgba(255, 160, 190, .85)); }
+.attentive .ear { transform: translateY(-2px); }
+
+/* ===== Alerte : elle a vu quelque chose, dressée et aux aguets ===== */
+.alert .ear { transform: translateY(-3px); }
+.alert #sprite { animation: alertQuiver .1s ease-in-out 5; }
+@keyframes alertQuiver { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(1.6px); } }
 
 /* ===== Chinning : elle frotte son menton pour marquer ===== */
 .chin #head { animation: chinRub .32s ease-in-out infinite; transform-box: fill-box; transform-origin: 60% 100%; }

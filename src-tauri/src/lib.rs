@@ -86,6 +86,11 @@ fn foreground_info() -> Option<ForegroundInfo> {
 }
 
 #[tauri::command]
+fn quit(app: AppHandle) {
+    app.exit(0);
+}
+
+#[tauri::command]
 fn minimize_window(hwnd: isize) -> bool {
     native::minimize(hwnd)
 }
@@ -153,6 +158,7 @@ pub fn run() {
             cursor_pos,
             foreground_info,
             minimize_window,
+            quit,
             open_settings,
             autostart_get,
             autostart_set
