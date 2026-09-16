@@ -78,6 +78,8 @@ const SAY = {
   bought: (n) => `Oh ! ${n} ! ✨`,
   flop: ["*se laisse tomber sur le flanc*", "*floomf*", "Trop bien, là...", "*totalement ramollie*", "*fond dans le sol*"],
   zoom: ["*ZOOMIES*", "WIIIII", "*part en trombe*", "Attrape-moi !", "*fait trois fois le tour*"],
+  chin: ["*frotte son menton* à moi.", "Marqué. C'est à moi maintenant.", "*chinning intensif*", "Ça sent le lapin, ici."],
+  thump: ["*THUMP*", "*tape du pied*", "Grrr.", "*coup de patte agacé*"],
   groom: ["*se lave le museau*", "*lisse ses oreilles*", "*fait sa toilette*", "Faut rester propre."],
   lookout: ["*se dresse* ...", "C'était quoi ce bruit ?", "*scrute l'horizon*", "*oreilles en radar*", "Quelqu'un ?"],
   back: ["Te revoilà ! ♥", "Tu m'as manqué !", "*saute de joie* Coucou !", "Enfin ! Je m'ennuyais."],
@@ -387,6 +389,7 @@ function think() {
   if (r < (acc += 0.06)) return lookout();
   if (r < (acc += 0.05) && active) return binky();
   if (r < (acc += 0.04) && active) return zoomies();
+  if (r < (acc += 0.06) && furniture.length) return chin();
   if (r < (acc += 0.14) && furniture.length) return useFurniture();
   if (r < (acc += CFG.chaseChance) && cursorNear()) return chase();
   if (Math.random() < 0.82) return wander();
@@ -479,6 +482,27 @@ function groom() {
   setState("groom");
   if (Math.random() < 0.3 * CFG.chatter) say(pick(SAY.groom), 2000);
   stateTimer = setTimeout(() => { addXp(1); setState("idle"); nextThink = now() + rnd(2500, 6000); }, rnd(3000, 6000));
+}
+
+// ----- Chinning : elle marque un meuble en frottant son menton -----
+function chin() {
+  const f = pick(furniture);
+  const center = f.sx + f.sw / 2;
+  goTo(center - W / 2 + (facing < 0 ? L(14) : -L(14)), () => {
+    setFacing(Math.sign(center - centerX()) || facing);
+    setState("chin");
+    say(pick(SAY.chin), 2200);
+    stateTimer = setTimeout(() => { burst("\u2665", 1); addXp(1); setState("idle"); nextThink = now() + rnd(3000, 6000); }, rnd(1800, 3200));
+  });
+}
+
+// ----- Thump : coup de patte arrière -----
+function thump() {
+  clearTimeout(stateTimer);
+  setState("thump");
+  burst("\ud83d\udca8", 1);
+  say(pick(SAY.thump), 1600);
+  stateTimer = setTimeout(() => { setState("idle"); nextThink = now() + rnd(2000, 5000); }, 500);
 }
 
 // ----- Zoomies : plusieurs dashes rapides -----
@@ -720,6 +744,7 @@ function pet() {
   el.prop.classList.add("hidden");
   setState("happy");
   if (petStreak > 6) {
+    if (Math.random() < 0.5) { thump(); return; }
     say(pick(SAY.petSpam), 1500);
     burst("💢", 1);
   } else {

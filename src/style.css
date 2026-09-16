@@ -245,6 +245,21 @@ html, body {
 .treat #sprite { animation: joy .35s ease-in-out 3; }
 .treat .eye-open { display: none; } .treat .eye-happy { display: block; }
 
+/* ===== Chinning : elle frotte son menton pour marquer ===== */
+.chin #head { animation: chinRub .32s ease-in-out infinite; transform-box: fill-box; transform-origin: 60% 100%; }
+@keyframes chinRub {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  50%      { transform: translate(4px, 3px) rotate(4deg); }
+}
+
+/* ===== Thump : coup de patte arrière agacé ===== */
+.thump #sprite { animation: thumpShake .11s ease-in-out 4; }
+@keyframes thumpShake {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  50%      { transform: translateY(3px) scale(1.03, .95); }
+}
+.thump .ear { transform: rotate(0) translateY(-2px); }
+
 /* ===== Objets à grignoter ===== */
 #prop {
   position: absolute;
