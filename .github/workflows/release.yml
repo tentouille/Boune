@@ -13,13 +13,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - uses: dtolnay/rust-toolchain@stable
-
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
@@ -30,11 +27,18 @@ jobs:
       - name: Build Tauri app
         run: npx tauri build
 
+      - name: Prepare release assets (noms fixes)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item src-tauri/target/release/bundle/msi/*.msi        dist/Boune-x64.msi
+          Copy-Item src-tauri/target/release/bundle/nsis/*-setup.exe dist/Boune-x64-setup.exe
+
       - name: Publish "latest" release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: Boune — dernière version
           files: |
-            src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/target/release/bundle/nsis/*-setup.exe
+            dist/Boune-x64.msi
+            dist/Boune-x64-setup.exe
