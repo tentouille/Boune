@@ -85,6 +85,7 @@ const SAY = {
   chin: ["*frotte son menton* à moi.", "Marqué. C'est à moi maintenant.", "*chinning intensif*", "Ça sent le lapin, ici."],
   thump: ["*THUMP*", "*tape du pied*", "Grrr.", "*coup de patte agacé*"],
   groom: ["*se lave le museau*", "*lisse ses oreilles*", "*fait sa toilette*", "Faut rester propre."],
+  solicit: ["Une caresse ? \ud83d\udc49\ud83d\udc48", "*tend la tête vers toi* \u2665", "*quémande des gratouilles*", "*se penche pour un câlin*"],
   lookout: ["*se dresse* ...", "C'était quoi ce bruit ?", "*scrute l'horizon*", "*oreilles en radar*", "Quelqu'un ?"],
   back: ["Te revoilà ! ♥", "Tu m'as manqué !", "*saute de joie* Coucou !", "Enfin ! Je m'ennuyais."],
   scrollAlert: (m) => [`Hé ! Ça fait ${m} min de scroll... 🐰`, `${m} min de Reels ?! Allez, ça suffit.`, `Bon. ${m} minutes. Je m'en occupe.`],
@@ -206,8 +207,8 @@ let holdTimer = 0;
 let hop = null;                     // bond en cours { ph, t0, fromX, dx, peak, ... }
 let zoomLeft = 0;                   // dashes restants pendant les zoomies
 let airT0 = 0, airDur = 0, airPeak = 0; // arc vertical (binky)
-let alertUntil = 0, followUntil = 0;
-const INTERRUPTIBLE = new Set(["idle", "walk", "follow", "attentive", "lookout"]);
+let alertUntil = 0, followUntil = 0, solicitUntil = 0;
+const INTERRUPTIBLE = new Set(["idle", "walk", "follow", "attentive", "lookout", "solicit"]);
 let furniture = [];                 // [{uid,type,sx,sw}] positions physiques (fenêtre scène)
 let arriveCb = null;                // action à faire à l'arrivée d'une balade ciblée
 let nextPoop = Date.now() + 40e3;
@@ -432,7 +433,7 @@ function endActivity(text) {
 function hopParams() {
   const f = CFG.hopSpeed / 2.6;
   if (state === "mission") return { dist: rnd(58, 78), peak: L(rnd(34, 44)), crouch: 55, air: 260, land: 60, pause: rnd(10, 50) };
-  if (state === "zoom")    return { dist: rnd(64, 86), peak: L(rnd(30, 40)), crouch: 45, air: 240, land: 55, pause: rnd(0, 30) };
+  if (state === "zoom")    return { dist: rnd(95, 130), peak: L(rnd(12, 20)), crouch: 28, air: 165, land: 40, pause: rnd(0, 12) };
   if (state === "chase" || state === "follow") return { dist: rnd(46, 66), peak: L(rnd(28, 38)), crouch: 65, air: 290, land: 65, pause: rnd(20, 80) };
   return { dist: rnd(30, 52) * f, peak: L(rnd(22, 30)), crouch: 120, air: 340, land: 90, pause: rnd(120, 320) / f };
 }
@@ -693,10 +694,22 @@ async function pollCursor() {
   if (over && calm) { if (state !== "attentive") { arriveCb = null; setState("attentive"); } return; }
   if (!over && state === "attentive") { setState("idle"); nextThink = now() + 1500; }
 
-  // 2. Mouvement brusque tout près : elle se dresse, en alerte
-  if (calm && speed > L(CFG.alertFlick) && Math.abs(dxc) < L(CFG.alertRadius) && now() > alertUntil) {
+  // Approche-t-elle ? (distance au curseur qui diminue)
+  const my = pos.y + H / 2;
+  const curDist = Math.hypot(dxc, y - my);
+  const prevDist = Math.hypot(px - centerX(), py - my);
+  const approaching = curDist < prevDist - L(2);
+
+  // 2a. Approche BRUSQUE tout près : elle sursaute, dressée en alerte
+  if (calm && speed > L(CFG.alertFlick) && curDist < L(CFG.alertRadius) && now() > alertUntil) {
     alertUntil = now() + 8000;
     return startle();
+  }
+  // 2b. Approche DOUCE et proche : elle réclame une caresse
+  if (calm && approaching && speed > L(6) && speed < L(CFG.alertFlick) && curDist < L(210)
+      && now() > solicitUntil && !over) {
+    solicitUntil = now() + 7000;
+    return solicit();
   }
 
   // 3. Suivi du curseur
@@ -713,6 +726,16 @@ async function pollCursor() {
     setState("idle");
     nextThink = now() + rnd(1500, 3500);
   }
+}
+
+// Approche douce : elle réclame une caresse (se penche vers toi)
+function solicit() {
+  clearTimeout(stateTimer);
+  setFacing(Math.sign(cursor.x - centerX()) || facing);
+  setState("solicit");
+  burst("\u2665", 1);
+  say(pick(SAY.solicit), 2200);
+  stateTimer = setTimeout(() => { if (state === "solicit") { setState("idle"); nextThink = now() + rnd(1500, 3500); } }, rnd(1800, 2600));
 }
 
 // Elle a vu quelque chose : se dresse sur les pattes arrière

@@ -16,8 +16,10 @@ Petit lapin compagnon qui se balade en bas de ton écran. Léger (Tauri 2 : ~35 
 - **Quitter** : bouton « Quitter Boune » dans les Réglages (clic droit sur elle), ou menu de la barre système.
 - **Comportements de lapin** : bonds (pas de glissement), binky (saut de joie), flop (elle fond au sol), toilette, zoomies, nez qui frémit, moustaches, chinning (elle « marque » les meubles), thump (coup de patte agacé).
 - **Activités longues** : elle lit un livre, écoute de la musique, plante une carotte, regarde par la fenêtre… pendant 1 à 3 min. Un clic l'interrompt.
+- **Recycleur** : une poubelle de recyclage déplaçable est posée par défaut ; passe la souris sur une crotte (sans cliquer) et elle file dedans (+1). 
 - **Crottes 💩 = monnaie** : Boune en laisse au sol de temps en temps (plus souvent après avoir mangé). Clique dessus pour les ramasser.
 - **Boutique & meubles** (fenêtre Réglages) : gamelle d'eau, gamelle de foin, pot à friandises, panier-lit, branche à ronger, balle en osier, tapis. Après achat, « Placer » : l'objet suit la souris le long de la barre des tâches, clic pour poser. Glisser pour déplacer, clic droit pour ranger. Boune va boire, manger, se servir une friandise, ronger, et dort dans son panier.
+- **Réglages en deux onglets** (Boutique / Réglages) avec « Quitter Boune » en haut.
 - **Réglages** (clic droit sur Boune, ou menu barre système) : lancement avec Windows, taille, vitesse, bavardage, siestes, seuil et mots-clés anti-scroll, remise à zéro de la progression. Appliqués en direct.
 - **Menu dans la barre système** : réglages, stats, dodo/réveil, la ramener sous le curseur (fonctionne sur l'écran où est la souris), quitter.
 
