@@ -36,12 +36,40 @@
     button { flex: 1; padding: 9px 12px; border: 0; border-radius: 10px; font: inherit; font-weight: 600; cursor: pointer; background: var(--pink); color: #fff; }
     button.ghost { background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
     button.danger { background: #fff; color: #d64562; border: 1.5px solid #f5c2cc; }
+    .balance { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .balance b { font-size: 22px; }
+    .balance small { color: var(--muted); font-size: 12px; }
+    .shop { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .good { border: 1.5px solid var(--line); border-radius: 12px; padding: 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+    .good .pic { height: 44px; display: flex; align-items: flex-end; }
+    .good .pic svg { max-width: 96px; max-height: 44px; }
+    .good .nm { font-size: 12.5px; font-weight: 600; }
+    .good button { padding: 5px 10px; font-size: 12.5px; flex: none; width: 100%; }
+    .good button:disabled { background: #eee2e6; color: #b09aa2; cursor: default; }
+    .inv { display: flex; flex-direction: column; gap: 6px; }
+    .inv .row { padding: 6px 0; }
+    .inv .row + .row { border-top: 1px dashed var(--line); }
+    .inv .st { font-size: 11.5px; color: var(--muted); }
+    .inv button { flex: none; padding: 5px 10px; font-size: 12.5px; }
+    #shopmsg { font-size: 12px; color: #d64562; min-height: 14px; margin-top: 6px; }
     #saved { text-align: center; color: var(--muted); font-size: 12px; height: 16px; margin-top: 8px; }
   </style>
 </head>
 <body>
   <h1>Boune <small>réglages</small></h1>
   <p class="hint">Les changements s'appliquent immédiatement.</p>
+
+  <section>
+    <h2>Boutique</h2>
+    <div class="balance"><div><b id="crottes">0</b> 💩 <small>crottes ramassées</small></div><small>Clique sur les crottes au sol pour les ramasser</small></div>
+    <div class="shop" id="shop"></div>
+    <div id="shopmsg"></div>
+  </section>
+
+  <section>
+    <h2>Mes objets</h2>
+    <div class="inv" id="inv"><small class="st">Rien pour l'instant. Achète un objet, puis place-le le long de la barre des tâches.</small></div>
+  </section>
 
   <section>
     <h2>Général</h2>
@@ -176,6 +204,45 @@
       }
     });
     document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    // ---------- Boutique / inventaire ----------
+    const { listen } = window.__TAURI__.event;
+    const CATALOG = {
+      water:  { name: "Gamelle d'eau", price: 15, svg: `<svg viewBox="0 0 54 30" width="54"><path d="M4 12 q23 -6 46 0 l-4 12 q-19 5 -38 0z" fill="#8fb8d8"/><ellipse cx="27" cy="12" rx="23" ry="5" fill="#bfe0f5"/><ellipse cx="27" cy="12.5" rx="18" ry="3.2" fill="#7fc4ec"/></svg>` },
+      food:   { name: "Gamelle de foin", price: 15, svg: `<svg viewBox="0 0 54 32" width="54"><path d="M4 14 q23 -6 46 0 l-4 12 q-19 5 -38 0z" fill="#d98c6b"/><ellipse cx="27" cy="14" rx="23" ry="5" fill="#f0b494"/><path d="M10 12 l8 -8 M16 13 l10 -9 M24 12 l9 -8 M32 13 l8 -7 M38 13 l6 -4" stroke="#d9b45a" stroke-width="1.6" stroke-linecap="round"/><ellipse cx="27" cy="13" rx="17" ry="2.6" fill="#c9a24e"/></svg>` },
+      treats: { name: "Pot à friandises", price: 25, svg: `<svg viewBox="0 0 34 40" width="34"><rect x="5" y="8" width="24" height="28" rx="6" fill="#dbeff8" stroke="#a9cfe4" stroke-width="1.5"/><rect x="7" y="3" width="20" height="7" rx="2" fill="#ff7b9c"/><circle cx="12" cy="24" r="3.5" fill="#fb923c"/><circle cx="20" cy="28" r="3.5" fill="#f59e0b"/><circle cx="21" cy="19" r="3" fill="#fb923c"/></svg>` },
+      bed:    { name: "Panier douillet", price: 40, svg: `<svg viewBox="0 0 96 44" width="90"><path d="M4 22 q0 -12 14 -12 h60 q14 0 14 12 v10 q0 8 -10 8 h-68 q-10 0 -10 -8z" fill="#c99a6b"/><path d="M8 22 q0 -8 10 -8 h60 q10 0 10 8 v8 q0 6 -8 6 h-64 q-8 0 -8 -6z" fill="#e0b98c"/><ellipse cx="48" cy="28" rx="34" ry="9" fill="#ffd3dc"/></svg>` },
+      stick:  { name: "Branche de pommier", price: 10, svg: `<svg viewBox="0 0 60 18" width="60"><path d="M3 11 q14 -8 28 -3 q12 4 26 -2" stroke="#8b5e3c" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M20 7 l4 -5 M40 8 l3 -5" stroke="#8b5e3c" stroke-width="2.5" stroke-linecap="round"/></svg>` },
+      ball:   { name: "Balle en osier", price: 12, svg: `<svg viewBox="0 0 30 30" width="30"><circle cx="15" cy="14" r="12" fill="#d9b784"/><path d="M4 10 q11 -6 22 0 M3 14 q12 -4 24 0 M4 18 q11 6 22 0 M9 3.5 q6 10.5 0 21 M21 3.5 q-6 10.5 0 21" stroke="#b08d5a" stroke-width="1.3" fill="none"/></svg>` },
+      rug:    { name: "Petit tapis", price: 8, svg: `<svg viewBox="0 0 110 14" width="96"><rect x="2" y="2" width="106" height="10" rx="5" fill="#a5b4d6"/><rect x="10" y="2" width="14" height="10" fill="#ffd3dc"/><rect x="38" y="2" width="14" height="10" fill="#ffd3dc"/><rect x="66" y="2" width="14" height="10" fill="#ffd3dc"/></svg>` },
+    };
+    const readJSON = (k) => { try { return JSON.parse(localStorage.getItem(k)) || null; } catch { return null; } };
+    function renderShop() {
+      const save = readJSON("boune.save.v1") || {};
+      const scene = readJSON("boune.scene.v1") || { placed: [] };
+      const crottes = save.crottes || 0;
+      $("crottes").textContent = crottes;
+      $("shop").innerHTML = Object.entries(CATALOG).map(([id, c]) => `
+        <div class="good"><div class="pic">${c.svg}</div><div class="nm">${c.name}</div>
+        <button data-buy="${id}" ${crottes < c.price ? "disabled" : ""}>${c.price} 💩</button></div>`).join("");
+      const items = save.items || [];
+      const placed = new Set(scene.placed.map((p) => p.uid));
+      $("inv").innerHTML = items.length ? items.map((it) => `
+        <div class="row"><label>${CATALOG[it.type].name}<span class="st"> · ${placed.has(it.uid) ? "posé" : "rangé"}</span></label>
+        ${placed.has(it.uid) ? `<button class="ghost" data-remove="${it.uid}">Ranger</button>` : `<button data-place="${it.uid}" data-type="${it.type}">Placer</button>`}</div>`).join("")
+        : `<small class="st">Rien pour l'instant. Achète un objet, puis place-le le long de la barre des tâches.</small>`;
+    }
+    document.addEventListener("click", (e) => {
+      const b = e.target.closest("button"); if (!b) return;
+      if (b.dataset.buy) { emit("shop-buy", { type: b.dataset.buy }); $("shopmsg").textContent = ""; }
+      if (b.dataset.place) { emit("scene-place", { uid: b.dataset.place, type: b.dataset.type }); $("shopmsg").textContent = "Pose-le avec la souris le long de la barre des tâches."; $("shopmsg").style.color = "var(--muted)"; }
+      if (b.dataset.remove) emit("scene-remove", { uid: b.dataset.remove });
+    });
+    listen("save-changed", () => setTimeout(renderShop, 50));
+    listen("scene-changed", () => setTimeout(renderShop, 50));
+    listen("shop-refused", ({ payload }) => { $("shopmsg").style.color = "#d64562"; $("shopmsg").textContent = payload; });
+    renderShop();
+    window.addEventListener("focus", renderShop);
   </script>
 </body>
 </html>

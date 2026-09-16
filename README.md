@@ -12,6 +12,8 @@ Petit lapin compagnon qui se balade en bas de ton écran. Léger (Tauri 2 : ~35 
 - **Anti doom-scroll** : si la fenêtre active contient `TikTok`, `Reels` ou `Shorts` pendant plus de 3 min, elle traverse l'écran, pousse la fenêtre et la **minimise** (réversible, tu la reprends depuis la barre des tâches). Puis 10 min de répit.
 - **Progression** : XP pour les câlins, grignotages, scrolls stoppés et temps passé ensemble. Niveau 3 → écharpe, 5 → nœud, 8 → couronne de fleurs.
 - **Activités longues** : elle lit un livre, écoute de la musique, plante une carotte, regarde par la fenêtre… pendant 1 à 3 min. Un clic l'interrompt.
+- **Crottes 💩 = monnaie** : Boune en laisse au sol de temps en temps (plus souvent après avoir mangé). Clique dessus pour les ramasser.
+- **Boutique & meubles** (fenêtre Réglages) : gamelle d'eau, gamelle de foin, pot à friandises, panier-lit, branche à ronger, balle en osier, tapis. Après achat, « Placer » : l'objet suit la souris le long de la barre des tâches, clic pour poser. Glisser pour déplacer, clic droit pour ranger. Boune va boire, manger, se servir une friandise, ronger, et dort dans son panier.
 - **Réglages** (clic droit sur Boune, ou menu barre système) : lancement avec Windows, taille, vitesse, bavardage, siestes, seuil et mots-clés anti-scroll, remise à zéro de la progression. Appliqués en direct.
 - **Menu dans la barre système** : réglages, stats, dodo/réveil, la ramener sous le curseur (fonctionne sur l'écran où est la souris), quitter.
 
@@ -35,14 +37,15 @@ Les répliques sont dans `SAY`, les objets à grignoter dans `NIBBLES`, les acti
 ```
 src/            front (HTML + CSS + JS vanilla, aucune dépendance)
   index.html    le SVG de Boune
-  settings.html fenêtre de réglages (autonome)
+  settings.html fenêtre de réglages + boutique
+  scene.html    bande transparente le long de la barre des tâches : meubles et crottes
   style.css     tous les états / animations
   main.js       machine à états, souris, progression
 src-tauri/      côté natif Rust
   src/lib.rs    commandes Win32 (souris globale, fenêtre active, minimiser), tray, autostart
 ```
 
-La sauvegarde (XP, compteurs) et les réglages sont dans le `localStorage` de la webview.
+La sauvegarde (XP, crottes, objets), la scène (meubles posés) et les réglages sont dans le `localStorage` de la webview, partagé entre les trois fenêtres. Les fenêtres se parlent par événements Tauri (`poop`, `collect`, `shop-buy`, `scene-place`, `scene-changed`…).
 
 ## Idées pour la suite
 

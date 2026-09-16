@@ -2,7 +2,11 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Permissions de la fenêtre de Boune",
-  "windows": ["main", "settings"],
+  "windows": [
+    "main",
+    "settings",
+    "scene"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-set-position",
@@ -13,6 +17,8 @@
     "core:window:allow-available-monitors",
     "core:window:allow-scale-factor",
     "core:window:allow-set-focus",
-    "core:event:default"
+    "core:event:default",
+    "core:window:allow-set-size",
+    "core:window:allow-set-always-on-top"
   ]
 }

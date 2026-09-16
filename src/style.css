@@ -181,6 +181,19 @@ html, body {
 }
 .surprised .ear { transform: rotate(0) translateY(-3px); }
 
+.poop #sprite { animation: squat .9s ease-in-out; }
+@keyframes squat {
+  0%, 100% { transform: scale(1, 1); }
+  40%, 70% { transform: scale(1.06, .9) translateY(2px); }
+}
+.drink #head, .eat #head { animation: lap .32s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 80%; }
+@keyframes lap {
+  0%, 100% { transform: rotate(0) translateY(0); }
+  50%      { transform: rotate(6deg) translateY(3px); }
+}
+.treat #sprite { animation: joy .35s ease-in-out 3; }
+.treat .eye-open { display: none; } .treat .eye-happy { display: block; }
+
 /* ===== Objets à grignoter ===== */
 #prop {
   position: absolute;

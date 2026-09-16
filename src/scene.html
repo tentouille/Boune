@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Boune — scène</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; background: transparent; overflow: hidden; user-select: none; -webkit-user-select: none; font-family: "Segoe UI", system-ui, sans-serif; }
+    #scene { position: relative; width: 100%; height: 100%; }
+    .item { position: absolute; bottom: 4px; cursor: grab; transition: filter .15s; }
+    .item svg { display: block; width: 100%; height: 100%; }
+    .item.hover { filter: drop-shadow(0 0 5px rgba(255, 180, 200, .9)); }
+    .item.ghost { opacity: .7; pointer-events: none; }
+    .item.dragging { cursor: grabbing; filter: drop-shadow(0 4px 8px rgba(0,0,0,.3)); }
+    .poop { position: absolute; bottom: 5px; width: 12px; height: 9px; cursor: pointer; animation: drop .35s cubic-bezier(.3,1.5,.6,1); }
+    .poop svg { display: block; width: 100%; height: 100%; }
+    .poop.hover { transform: scale(1.4); }
+    @keyframes drop { from { transform: translateY(-18px) scale(.6); } to { transform: none; } }
+    .pop { position: absolute; bottom: 20px; font-size: 13px; font-weight: 700; color: #7a5a48; text-shadow: 0 0 3px #fff, 0 0 6px #fff; pointer-events: none; animation: rise 1s ease-out forwards; }
+    @keyframes rise { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-30px); opacity: 0; } }
+    #hint { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); background: #fff; border: 2px solid #ffc9d6; border-radius: 12px; padding: 5px 10px; font-size: 12px; color: #4a3a42; box-shadow: 0 3px 10px rgba(0,0,0,.12); pointer-events: none; }
+    #hint.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div id="scene"></div>
+  <div id="hint" class="hidden"></div>
+  <script>
+    // ============================================================
+    //  Scène : les meubles et les crottes, le long de la barre des tâches.
+    //  Fenêtre transparente, traversée par les clics sauf sur un objet.
+    // ============================================================
+    const { getCurrentWindow, currentMonitor, PhysicalPosition, PhysicalSize } = window.__TAURI__.window;
+    const { invoke } = window.__TAURI__.core;
+    const { listen, emit } = window.__TAURI__.event;
+
+    const SCENE_KEY = "boune.scene.v1";
+    const SAVE_KEY = "boune.save.v1";
+    const H = 130;             // hauteur logique de la bande
+    const MAX_POOPS = 15;
+
+    // ----- Catalogue (partagé avec la boutique : mêmes ids) -----
+    const CATALOG = {
+      water:  { name: "Gamelle d'eau", w: 54, h: 30, svg: `<svg viewBox="0 0 54 30"><ellipse cx="27" cy="25" rx="26" ry="5" fill="#000" opacity=".1"/><path d="M4 12 q23 -6 46 0 l-4 12 q-19 5 -38 0z" fill="#8fb8d8"/><ellipse cx="27" cy="12" rx="23" ry="5" fill="#bfe0f5"/><ellipse cx="27" cy="12.5" rx="18" ry="3.2" fill="#7fc4ec"/><ellipse cx="22" cy="11.5" rx="5" ry="1.4" fill="#e6f6ff" opacity=".8"/></svg>` },
+      food:   { name: "Gamelle de foin", w: 54, h: 32, svg: `<svg viewBox="0 0 54 32"><ellipse cx="27" cy="27" rx="26" ry="5" fill="#000" opacity=".1"/><path d="M4 14 q23 -6 46 0 l-4 12 q-19 5 -38 0z" fill="#d98c6b"/><ellipse cx="27" cy="14" rx="23" ry="5" fill="#f0b494"/><path d="M10 12 l8 -8 M16 13 l10 -9 M24 12 l9 -8 M32 13 l8 -7 M38 13 l6 -4 M20 12 l-6 -6 M30 12 l-5 -7" stroke="#d9b45a" stroke-width="1.6" stroke-linecap="round"/><ellipse cx="27" cy="13" rx="17" ry="2.6" fill="#c9a24e"/></svg>` },
+      treats: { name: "Pot à friandises", w: 34, h: 40, svg: `<svg viewBox="0 0 34 40"><ellipse cx="17" cy="36" rx="15" ry="3.5" fill="#000" opacity=".1"/><rect x="5" y="8" width="24" height="28" rx="6" fill="#dbeff8" stroke="#a9cfe4" stroke-width="1.5"/><rect x="7" y="3" width="20" height="7" rx="2" fill="#ff7b9c"/><circle cx="12" cy="24" r="3.5" fill="#fb923c"/><circle cx="20" cy="28" r="3.5" fill="#f59e0b"/><circle cx="21" cy="19" r="3" fill="#fb923c"/><circle cx="13" cy="31" r="2.8" fill="#f59e0b"/><rect x="8" y="12" width="4" height="20" rx="2" fill="#fff" opacity=".45"/></svg>` },
+      bed:    { name: "Panier douillet", w: 96, h: 44, svg: `<svg viewBox="0 0 96 44"><ellipse cx="48" cy="40" rx="46" ry="4" fill="#000" opacity=".1"/><path d="M4 22 q0 -12 14 -12 h60 q14 0 14 12 v10 q0 8 -10 8 h-68 q-10 0 -10 -8z" fill="#c99a6b"/><path d="M8 22 q0 -8 10 -8 h60 q10 0 10 8 v8 q0 6 -8 6 h-64 q-8 0 -8 -6z" fill="#e0b98c"/><path d="M10 26 h76 M10 30 h76" stroke="#c99a6b" stroke-width="1.2" opacity=".7"/><ellipse cx="48" cy="28" rx="34" ry="9" fill="#ffd3dc"/><ellipse cx="48" cy="27" rx="28" ry="6" fill="#ffe4ea"/></svg>` },
+      stick:  { name: "Branche de pommier", w: 60, h: 18, svg: `<svg viewBox="0 0 60 18"><ellipse cx="30" cy="15" rx="28" ry="2.5" fill="#000" opacity=".1"/><path d="M3 11 q14 -8 28 -3 q12 4 26 -2" stroke="#8b5e3c" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M3 11 q14 -8 28 -3 q12 4 26 -2" stroke="#b07a52" stroke-width="2" fill="none" stroke-linecap="round" opacity=".8"/><path d="M20 7 l4 -5 M40 8 l3 -5" stroke="#8b5e3c" stroke-width="2.5" stroke-linecap="round"/></svg>` },
+      ball:   { name: "Balle en osier", w: 30, h: 30, svg: `<svg viewBox="0 0 30 30"><ellipse cx="15" cy="27" rx="13" ry="2.5" fill="#000" opacity=".1"/><circle cx="15" cy="14" r="12" fill="#d9b784"/><path d="M4 10 q11 -6 22 0 M3 14 q12 -4 24 0 M4 18 q11 6 22 0 M9 3.5 q6 10.5 0 21 M21 3.5 q-6 10.5 0 21 M15 2 v24" stroke="#b08d5a" stroke-width="1.3" fill="none"/></svg>` },
+      rug:    { name: "Petit tapis", w: 110, h: 14, svg: `<svg viewBox="0 0 110 14"><rect x="2" y="2" width="106" height="10" rx="5" fill="#a5b4d6"/><rect x="10" y="2" width="14" height="10" fill="#ffd3dc"/><rect x="38" y="2" width="14" height="10" fill="#ffd3dc"/><rect x="66" y="2" width="14" height="10" fill="#ffd3dc"/><rect x="94" y="2" width="10" height="10" rx="4" fill="#ffd3dc"/></svg>` },
+    };
+    const POOP_SVG = `<svg viewBox="0 0 12 9"><ellipse cx="6" cy="6" rx="5.5" ry="3" fill="#4a3226"/><ellipse cx="5" cy="4.5" rx="3.5" ry="2.4" fill="#5e4335"/><ellipse cx="4.2" cy="3.8" rx="1.2" ry=".7" fill="#8c6a58" opacity=".8"/></svg>`;
+
+    // ----- État -----
+    const win = getCurrentWindow();
+    const el = { scene: document.getElementById("scene"), hint: document.getElementById("hint") };
+    let scale = 1, W = 800, minX = 0, winY = 0;             // physique
+    let scene = loadScene();                       // { placed: [{uid,type,x}], poops: [x…] }  x = logique, relatif à la bande
+    let cursor = { x: 0, y: 0 };
+    let hoverable = false;
+    let placing = null;                            // { uid, type, node }
+    let drag = null;                               // { uid, node, dx, sx, moved }
+
+    function loadScene() {
+      try { const s = JSON.parse(localStorage.getItem(SCENE_KEY)); if (s && Array.isArray(s.placed)) return { poops: [], ...s }; } catch {}
+      return { placed: [], poops: [] };
+    }
+    function persist() {
+      try { localStorage.setItem(SCENE_KEY, JSON.stringify(scene)); } catch {}
+    }
+    function broadcast() {
+      persist();
+      // positions en physique (écran) pour Boune
+      emit("scene-changed", { placed: scene.placed.map((p) => ({ ...p, sx: minX + p.x * scale, sw: CATALOG[p.type].w * scale })) });
+    }
+    const L = (px) => px * scale;
+
+    // ----- Rendu -----
+    function render() {
+      el.scene.innerHTML = "";
+      for (const p of scene.placed) el.scene.appendChild(itemNode(p));
+      scene.poops.forEach((x, i) => {
+        const d = document.createElement("div");
+        d.className = "poop"; d.dataset.i = i; d.style.left = x + "px"; d.innerHTML = POOP_SVG;
+        d.style.animation = "none";
+        el.scene.appendChild(d);
+      });
+    }
+    function itemNode(p) {
+      const c = CATALOG[p.type];
+      const d = document.createElement("div");
+      d.className = "item"; d.dataset.uid = p.uid;
+      d.style.left = p.x + "px"; d.style.width = c.w + "px"; d.style.height = c.h + "px";
+      d.innerHTML = c.svg;
+      return d;
+    }
+    function hint(text) {
+      el.hint.textContent = text;
+      el.hint.classList.toggle("hidden", !text);
+    }
+
+    // ----- Fenêtre : bande en bas de l'écran principal -----
+    async function layout() {
+      scale = await win.scaleFactor();
+      const mon = await currentMonitor().catch(() => null);
+      if (!mon) return;
+      const wa = mon.workArea || { position: mon.position, size: { width: mon.size.width, height: mon.size.height - Math.round(48 * scale) } };
+      minX = wa.position.x;
+      W = wa.size.width;
+      await win.setSize(new PhysicalSize(W, Math.round(H * scale)));
+      winY = wa.position.y + wa.size.height - Math.round(H * scale);
+      await win.setPosition(new PhysicalPosition(minX, winY));
+    }
+
+    // ----- Souris : zone cliquable = objets uniquement -----
+    async function pollCursor() {
+      const c = await invoke("cursor_pos").catch(() => null);
+      if (!c) return;
+      cursor.x = c[0]; cursor.y = c[1];
+      const lx = (cursor.x - minX) / scale;                  // logique
+      const ly = (cursor.y - winY) / scale;
+
+      if (placing) {
+        placing.node.style.left = clampX(lx - CATALOG[placing.type].w / 2, placing.type) + "px";
+        return;
+      }
+      if (drag) { return; }
+
+      let over = null;
+      if (ly >= 0 && ly <= H) {
+        for (const n of el.scene.children) {
+          const x = parseFloat(n.style.left), w = n.offsetWidth, h = n.offsetHeight;
+          const top = H - 4 - h;
+          if (lx >= x - 2 && lx <= x + w + 2 && ly >= top - 2) over = n;
+        }
+      }
+      for (const n of el.scene.querySelectorAll(".hover")) if (n !== over) n.classList.remove("hover");
+      if (over) over.classList.add("hover");
+      const want = !!over;
+      if (want !== hoverable) {
+        hoverable = want;
+        win.setIgnoreCursorEvents(!want).catch(() => {});
+      }
+    }
+    function clampX(x, type) { return Math.max(0, Math.min(W / scale - CATALOG[type].w, x)); }
+
+    // ----- Interactions -----
+    el.scene.addEventListener("pointerdown", (e) => {
+      const n = e.target.closest(".poop, .item");
+      if (!n) return;
+      if (n.classList.contains("poop")) {
+        if (e.button !== 0) return;
+        const i = Number(n.dataset.i);
+        const x = scene.poops[i];
+        scene.poops.splice(i, 1);
+        render();
+        const pop = document.createElement("div");
+        pop.className = "pop"; pop.textContent = "+1"; pop.style.left = x + "px";
+        el.scene.appendChild(pop); setTimeout(() => pop.remove(), 1000);
+        emit("collect", { n: 1 });
+        persist();
+        return;
+      }
+      if (e.button === 2) { // clic droit : ranger
+        const uid = n.dataset.uid;
+        scene.placed = scene.placed.filter((p) => p.uid !== uid);
+        render(); broadcast(); emit("raise-boune");
+        return;
+      }
+      if (e.button !== 0) return;
+      n.setPointerCapture(e.pointerId);
+      drag = { uid: n.dataset.uid, node: n, dx: (cursor.x - minX) / scale - parseFloat(n.style.left), moved: false };
+      n.classList.add("dragging");
+    });
+    el.scene.addEventListener("pointermove", async () => {
+      if (!drag) return;
+      const c = await invoke("cursor_pos").catch(() => null);
+      if (!c) return;
+      cursor.x = c[0];
+      const p = scene.placed.find((p) => p.uid === drag.uid);
+      const x = clampX((cursor.x - minX) / scale - drag.dx, p.type);
+      if (Math.abs(x - p.x) > 1) drag.moved = true;
+      p.x = x; drag.node.style.left = x + "px";
+    });
+    const endDrag = () => {
+      if (!drag) return;
+      drag.node.classList.remove("dragging");
+      if (drag.moved) broadcast();
+      drag = null;
+      emit("raise-boune");
+    };
+    el.scene.addEventListener("pointerup", endDrag);
+    el.scene.addEventListener("pointercancel", endDrag);
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    // placement d'un nouvel objet : le fantôme suit la souris, clic pour poser
+    document.addEventListener("pointerdown", (e) => {
+      if (!placing) return;
+      if (e.button === 0) {
+        const x = parseFloat(placing.node.style.left);
+        scene.placed.push({ uid: placing.uid, type: placing.type, x });
+        endPlacing(); render(); broadcast();
+      } else endPlacing();
+    });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && placing) endPlacing(); });
+    function startPlacing(uid, type) {
+      if (placing) endPlacing();
+      const node = itemNode({ uid, type, x: (cursor.x - minX) / scale });
+      node.classList.add("ghost");
+      el.scene.appendChild(node);
+      placing = { uid, type, node };
+      hint(`Clique pour poser « ${CATALOG[type].name} » — clic droit ou Échap pour annuler`);
+      win.setIgnoreCursorEvents(false).catch(() => {});
+      win.setFocus().catch(() => {});
+      hoverable = true;
+    }
+    function endPlacing() {
+      if (!placing) return;
+      placing.node.remove(); placing = null;
+      hint("");
+      emit("raise-boune");
+    }
+
+    // ----- Événements des autres fenêtres -----
+    listen("scene-place", ({ payload }) => startPlacing(payload.uid, payload.type));
+    listen("scene-remove", ({ payload }) => {
+      scene.placed = scene.placed.filter((p) => p.uid !== payload.uid);
+      render(); broadcast();
+    });
+    listen("poop", ({ payload }) => {
+      if (scene.poops.length >= MAX_POOPS) return;
+      const x = Math.max(2, Math.min(W / scale - 14, (payload.x - minX) / scale));
+      scene.poops.push(Math.round(x));
+      persist();
+      const d = document.createElement("div");
+      d.className = "poop"; d.dataset.i = scene.poops.length - 1; d.style.left = Math.round(x) + "px"; d.innerHTML = POOP_SVG;
+      el.scene.appendChild(d);
+    });
+    listen("scene-request", () => broadcast());
+    listen("scene-reset", () => { scene = { placed: [], poops: [] }; render(); broadcast(); });
+
+    // ----- Démarrage -----
+    (async () => {
+      await layout();
+      await win.setIgnoreCursorEvents(true);
+      render();
+      broadcast();
+      setInterval(pollCursor, 100);
+      setInterval(layout, 30e3);
+    })();
+  </script>
+</body>
+</html>

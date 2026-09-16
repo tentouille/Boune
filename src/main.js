@@ -7,7 +7,7 @@
 
 const { getCurrentWindow, currentMonitor, availableMonitors, PhysicalPosition } = window.__TAURI__.window;
 const { invoke } = window.__TAURI__.core;
-const { listen } = window.__TAURI__.event;
+const { listen, emit } = window.__TAURI__.event;
 
 // ----- Réglages (à ajuster librement) -----
 const CFG = {
@@ -69,6 +69,13 @@ const SAY = {
   chase: ["?", "C'est quoi ça ?", "*chasse le curseur*", "Attrapé ! ...ou pas.", "*renifle le curseur*"],
   held: ["Hé !", "Repose-moi !", "Wooo", "*pattes qui pendouillent*", "Où on va ?"],
   land: ["*pouf*", "Ouf.", "*s'ébroue*", "Encore !"],
+  poop: ["*plop*", "...pardon.", "*sifflote*", "C'est naturel.", "Cadeau !"],
+  drink: ["*lape lape lape*", "*boit à petites gorgées*", "Fraîche !"],
+  eat: ["*crounch crounch*", "*mâchonne du foin*", "*miam* du foin !", "*trie les granulés*"],
+  treat: ["Une friandise ! ♥", "*croque* mmmh !", "Encore une ?", "*yeux qui brillent*"],
+  chew: ["*ronge la branche*", "*grignote* c'est mieux qu'un câble.", "*croque* ...bon, presque."],
+  bed: ["*s'installe dans son panier*", "Mon panier ♥", "*tourne trois fois et se couche*"],
+  bought: (n) => `Oh ! ${n} ! ✨`,
   back: ["Te revoilà ! ♥", "Tu m'as manqué !", "*saute de joie* Coucou !", "Enfin ! Je m'ennuyais."],
   scrollAlert: (m) => [`Hé ! Ça fait ${m} min de scroll... 🐰`, `${m} min de Reels ?! Allez, ça suffit.`, `Bon. ${m} minutes. Je m'en occupe.`],
   scrollDone: ["Et hop, minimisé ! Tu peux le reprendre, promis 😌", "Voilà. Ta cervelle me dira merci.", "*époussette ses pattes* Fait."],
@@ -123,8 +130,11 @@ function loadSave() {
   } catch {}
   return { xp: 0, pets: 0, nibbles: 0, closes: 0, minutes: 0, createdAt: Date.now() };
 }
+if (save.crottes == null) save.crottes = 0;
+if (!Array.isArray(save.items)) save.items = [];
 function persist() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch {}
+  emit("save-changed", { crottes: save.crottes });
 }
 function levelFor(xp) { return Math.floor(Math.sqrt(xp / 40)) + 1; }
 function addXp(n) {
@@ -183,6 +193,11 @@ let posPending = false;
 let bubbleTimer = 0;
 let stateTimer = 0;
 let holdTimer = 0;
+let furniture = [];                 // [{uid,type,sx,sw}] positions physiques (fenêtre scène)
+let arriveCb = null;                // action à faire à l'arrivée d'une balade ciblée
+let nextPoop = Date.now() + rnd(4, 8) * 60e3;
+const PRICES = { water: 15, food: 15, treats: 25, bed: 40, stick: 10, ball: 12, rug: 8 };
+const NAMES = { water: "une gamelle d'eau", food: "une gamelle de foin", treats: "un pot à friandises", bed: "un panier douillet", stick: "une branche de pommier", ball: "une balle en osier", rug: "un petit tapis" };
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -266,6 +281,7 @@ async function init() {
   applyAccessories();
   setState("idle");
   nextThink = now() + 4000;
+  emit("scene-request");
   setTimeout(() => say(pick(SAY.hello)), 600);
 
   setInterval(tick, CFG.tickMs);
@@ -307,6 +323,7 @@ async function computeBounds() {
 // ----- Boucle principale (ne fait rien si Boune est immobile) -----
 function tick() {
   const t = now();
+  if (t >= nextPoop && (state === "idle" || state === "walk") && !mission) return poop();
   switch (state) {
     case "idle":
       if (t >= nextThink) think();
@@ -354,6 +371,7 @@ function think() {
   if (userIdle || r < (acc += CFG.napChance)) return nap();
   if (r < (acc += CFG.nibbleChance)) return nibble();
   if (r < (acc += CFG.activityChance)) return activity();
+  if (r < (acc += 0.16) && furniture.length) return useFurniture();
   if (r < (acc += CFG.chaseChance) && cursorNear()) return chase();
   if (r < 0.6) return wander();
   if (r < 0.6 + 0.13 * CFG.chatter) return say(pick(SAY.idle), 2200);
@@ -380,6 +398,7 @@ function endActivity(text) {
 }
 
 function wander() {
+  arriveCb = null;
   const range = L(rnd(120, 420));
   targetX = clamp(pos.x + (Math.random() < 0.5 ? -range : range), minX, maxX);
   setState("walk");
@@ -391,8 +410,14 @@ function chase() {
   targetX = clamp(cursor.x - W / 2, minX, maxX);
   setState("chase");
 }
+function goTo(x, cb) {
+  targetX = clamp(x, minX, maxX);
+  arriveCb = cb;
+  setState("walk");
+}
 function arrived() {
   if (state === "mission") return missionArrived();
+  if (arriveCb) { const cb = arriveCb; arriveCb = null; setState("idle"); return cb(); }
   const wasChase = state === "chase";
   setState("idle");
   nextThink = now() + rnd(1800, 5000);
@@ -401,6 +426,10 @@ function arrived() {
 
 // ----- Sieste -----
 function nap() {
+  const bed = furniture.find((f) => f.type === "bed");
+  if (bed && Math.abs(bed.sx + bed.sw / 2 - centerX()) > L(20) && state !== "sleep") {
+    return goTo(bed.sx + bed.sw / 2 - W / 2, () => { say(pick(SAY.bed), 2000); setTimeout(nap, 1200); });
+  }
   setState("sleep");
   el.zzz.classList.remove("hidden");
   sleepUntil = now() + rnd(...CFG.napDuration);
@@ -427,6 +456,63 @@ function nibble() {
     setState("idle");
     nextThink = now() + rnd(3000, 6000);
   }, rnd(4000, 7000));
+}
+
+// ----- Crottes (la monnaie) -----
+function poop() {
+  nextPoop = now() + rnd(4, 9) * 60e3;
+  clearTimeout(stateTimer);
+  setState("poop");
+  stateTimer = setTimeout(() => {
+    emit("poop", { x: centerX() - facing * L(34) });
+    if (Math.random() < 0.5) say(pick(SAY.poop), 1600);
+    setState("idle");
+    nextThink = now() + rnd(1500, 4000);
+  }, 900);
+}
+listen("collect", ({ payload }) => {
+  save.crottes += payload.n || 1;
+  persist();
+  if (Math.random() < 0.25 && state === "idle") say("Merci de ramasser ♥", 1600);
+});
+listen("scene-changed", ({ payload }) => { furniture = payload.placed || []; });
+listen("raise-boune", () => win.setAlwaysOnTop(true).catch(() => {}));
+listen("shop-buy", ({ payload }) => {
+  const price = PRICES[payload.type];
+  if (price == null) return;
+  if (save.crottes < price) return emit("shop-refused", `Il manque ${price - save.crottes} crotte(s).`);
+  save.crottes -= price;
+  save.items.push({ uid: "i" + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36), type: payload.type });
+  persist();
+  if (state === "idle" || state === "walk") { setState("surprised"); say(SAY.bought(NAMES[payload.type]), 2600); burst("✨", 3);
+    stateTimer = setTimeout(() => { setState("idle"); nextThink = now() + 2000; }, 600); }
+});
+
+// ----- Meubles : boire, manger, friandise, ronger -----
+function useFurniture() {
+  const kinds = { water: 3, food: 3, treats: 1.5, stick: 2, ball: 2, rug: 0.5 };
+  const pool = furniture.filter((f) => kinds[f.type]);
+  if (!pool.length) return wander();
+  const total = pool.reduce((s, f) => s + kinds[f.type], 0);
+  let r = Math.random() * total, f = pool[0];
+  for (const p of pool) { r -= kinds[p.type]; if (r <= 0) { f = p; break; } }
+  const center = f.sx + f.sw / 2;
+  goTo(center - W / 2 + (f.type === "rug" ? 0 : -facing * L(12)), () => {
+    setFacing(Math.sign(center - centerX()) || facing);
+    const act = { water: ["drink", SAY.drink, 2], food: ["eat", SAY.eat, 2], treats: ["treat", SAY.treat, 3], stick: ["chew", SAY.chew, 2], ball: ["chew", SAY.chew, 2], rug: ["idle", SAY.idle, 0] }[f.type];
+    const [cls, lines, xp] = act;
+    if (cls === "idle") { nextThink = now() + rnd(4000, 9000); return; }
+    setState(cls === "chew" ? "nibble" : cls);
+    say(pick(lines), 2200);
+    if (cls === "treat") burst("♥", 2);
+    stateTimer = setTimeout(() => {
+      addXp(xp);
+      if (cls === "eat") nextPoop = Math.min(nextPoop, now() + rnd(40, 100) * 1000);
+      if (cls === "chew") save.nibbles++;
+      setState("idle");
+      nextThink = now() + rnd(3000, 7000);
+    }, cls === "treat" ? 2000 : rnd(4000, 8000));
+  });
 }
 
 // ----- Souris : sondage global, zone cliquable, regard -----
@@ -523,7 +609,8 @@ async function drop() {
 function pet() {
   if (state === "sleep") { wake(true); return; }
   if (state === "mission" || state === "push" || state === "fall") return;
-  if (state === "activity") { el.prop.classList.add("hidden"); }
+  if (state === "activity" || state === "drink" || state === "eat") { el.prop.classList.add("hidden"); }
+  arriveCb = null;
   const t = now();
   petStreak = t - petStreakT < 1200 ? petStreak + 1 : 1;
   petStreakT = t;
@@ -599,8 +686,9 @@ async function missionArrived() {
 // ----- Fenêtre de réglages -----
 listen("settings-changed", ({ payload }) => applySettings(payload));
 listen("reset-progress", () => {
-  save = { xp: 0, pets: 0, nibbles: 0, closes: 0, minutes: 0, createdAt: now() };
+  save = { xp: 0, pets: 0, nibbles: 0, closes: 0, minutes: 0, createdAt: now(), crottes: 0, items: [] };
   persist();
+  emit("scene-reset");
   applyAccessories();
   say("Tout oublié... on recommence ? 🐰", 3000);
 });
@@ -625,7 +713,7 @@ listen("tray", ({ payload }) => {
     case "stats": {
       const lvl = levelFor(save.xp);
       const next = 40 * lvl * lvl;
-      say(`Niv. ${lvl} · ${save.xp}/${next} XP · ♥ ${save.pets} câlins · 🍪 ${save.nibbles} grignotages · 🚫 ${save.closes} scrolls stoppés · ⏱ ${Math.round(save.minutes / 6) / 10} h ensemble`, 6000);
+      say(`Niv. ${lvl} · ${save.xp}/${next} XP · 💩 ${save.crottes} crottes · ♥ ${save.pets} câlins · 🍪 ${save.nibbles} grignotages · 🚫 ${save.closes} scrolls stoppés · ⏱ ${Math.round(save.minutes / 6) / 10} h ensemble`, 6000);
       break;
     }
   }
