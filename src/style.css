@@ -40,7 +40,13 @@ html, body {
   transform-origin: 50% 100%;
   will-change: transform;
 }
-#svg { display: block; pointer-events: auto; }
+#svg, #svg-up { display: block; pointer-events: auto; position: absolute; inset: 0; }
+#svg-up { display: none; }
+.upright #svg { display: none; }
+.upright #svg-up { display: block; }
+.arm { transform-box: fill-box; }
+.arm.l { transform-origin: 50% 10%; }
+.arm.r { transform-origin: 50% 10%; }
 
 #shadow {
   position: absolute;
@@ -64,7 +70,7 @@ html, body {
 }
 
 /* Yeux : un seul style visible à la fois */
-#eyes { transition: transform .15s; }
+.eyes { transition: transform .15s; }
 .eye-closed, .eye-happy, .eye-angry { display: none; }
 .sleep .eye-open, .blink .eye-open { display: none; }
 .sleep .eye-closed, .blink .eye-closed { display: block; }
@@ -116,8 +122,8 @@ html, body {
   0%, 100% { transform: scale(1, 1) translateY(0); }
   50%      { transform: scale(1.03, 0.97) translateY(2px); }
 }
-.sleep #ear-l { transform: rotate(-22deg); }
-.sleep #ear-r { transform: rotate(22deg); }
+.sleep #ear-l { transform: rotate(-48deg); }
+.sleep #ear-r { transform: rotate(-42deg); }
 
 .happy #sprite { animation: joy .35s ease-in-out 4; }
 @keyframes joy {
@@ -137,7 +143,11 @@ html, body {
   50%      { transform: rotate(6deg); }
 }
 .held .ear { transform: rotate(0deg); }
-.held #feet { animation: dangle .7s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 0; }
+.held .arm.l { animation: swingL .9s ease-in-out infinite; }
+.held .arm.r { animation: swingR .9s ease-in-out infinite; }
+@keyframes swingL { 0%, 100% { transform: rotate(-14deg); } 50% { transform: rotate(10deg); } }
+@keyframes swingR { 0%, 100% { transform: rotate(14deg); } 50% { transform: rotate(-10deg); } }
+.held .feet { animation: dangle .7s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 0; }
 @keyframes dangle {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(3px); }
@@ -173,6 +183,8 @@ html, body {
   50%      { transform: rotate(-17deg) translateX(6px); }
 }
 .push .ear { transform: rotate(-20deg); }
+.push .arm.l, .push .arm.r { animation: shove .35s ease-in-out infinite; }
+@keyframes shove { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(5px) translateY(-2px); } }
 
 .surprised #sprite { animation: startle .25s ease-out 2; }
 @keyframes startle {
@@ -180,6 +192,9 @@ html, body {
   50% { transform: translateY(-12px) scale(.96, 1.06); }
 }
 .surprised .ear { transform: rotate(0) translateY(-3px); }
+.lookout #sprite { animation: breathe 3.2s ease-in-out infinite; }
+.lookout .ear { animation: earScan 2.4s ease-in-out infinite; }
+@keyframes earScan { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-10deg); } 70% { transform: rotate(8deg); } }
 
 .poop #sprite { animation: squat .9s ease-in-out; }
 @keyframes squat {

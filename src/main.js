@@ -76,6 +76,7 @@ const SAY = {
   chew: ["*ronge la branche*", "*grignote* c'est mieux qu'un câble.", "*croque* ...bon, presque."],
   bed: ["*s'installe dans son panier*", "Mon panier ♥", "*tourne trois fois et se couche*"],
   bought: (n) => `Oh ! ${n} ! ✨`,
+  lookout: ["*se dresse* ...", "C'était quoi ce bruit ?", "*scrute l'horizon*", "*oreilles en radar*", "Quelqu'un ?"],
   back: ["Te revoilà ! ♥", "Tu m'as manqué !", "*saute de joie* Coucou !", "Enfin ! Je m'ennuyais."],
   scrollAlert: (m) => [`Hé ! Ça fait ${m} min de scroll... 🐰`, `${m} min de Reels ?! Allez, ça suffit.`, `Bon. ${m} minutes. Je m'en occupe.`],
   scrollDone: ["Et hop, minimisé ! Tu peux le reprendre, promis 😌", "Voilà. Ta cervelle me dira merci.", "*époussette ses pattes* Fait."],
@@ -152,9 +153,9 @@ function addXp(n) {
 }
 function applyAccessories() {
   const lvl = levelFor(save.xp);
-  el.scarf.classList.toggle("on", lvl >= 3);
-  el.bow.classList.toggle("on", lvl >= 5);
-  el.crown.classList.toggle("on", lvl >= 8);
+  el.scarf.forEach((n) => n.classList.toggle("on", lvl >= 3));
+  el.bow.forEach((n) => n.classList.toggle("on", lvl >= 5));
+  el.crown.forEach((n) => n.classList.toggle("on", lvl >= 8));
 }
 
 // ----- DOM -----
@@ -165,10 +166,10 @@ const el = {
   fx: document.getElementById("fx"),
   zzz: document.getElementById("zzz"),
   prop: document.getElementById("prop"),
-  eyes: document.getElementById("eyes"),
-  scarf: document.getElementById("acc-scarf"),
-  bow: document.getElementById("acc-bow"),
-  crown: document.getElementById("acc-crown"),
+  eyes: document.querySelectorAll(".eyes"),
+  scarf: document.querySelectorAll(".acc-scarf"),
+  bow: document.querySelectorAll(".acc-bow"),
+  crown: document.querySelectorAll(".acc-crown"),
 };
 
 // ----- État -----
@@ -206,10 +207,12 @@ const L = (px) => px * scale; // logique -> physique
 const now = () => Date.now();
 
 // ----- Utilitaires visuels -----
+const UPRIGHT = new Set(["surprised", "push", "held", "lookout", "treat"]);
 function setState(s) {
   el.bunny.classList.remove(state);
   state = s;
   el.bunny.classList.add(s);
+  el.bunny.classList.toggle("upright", UPRIGHT.has(s));
   clearTimeout(stateTimer);
   clearInterval(activityFx);
 }
@@ -371,11 +374,18 @@ function think() {
   if (userIdle || r < (acc += CFG.napChance)) return nap();
   if (r < (acc += CFG.nibbleChance)) return nibble();
   if (r < (acc += CFG.activityChance)) return activity();
+  if (r < (acc += 0.07)) return lookout();
   if (r < (acc += 0.16) && furniture.length) return useFurniture();
   if (r < (acc += CFG.chaseChance) && cursorNear()) return chase();
   if (r < 0.6) return wander();
   if (r < 0.6 + 0.13 * CFG.chatter) return say(pick(SAY.idle), 2200);
   // sinon : rien, elle profite
+}
+
+function lookout() {
+  setState("lookout");
+  if (Math.random() < 0.4 * CFG.chatter) say(pick(SAY.lookout), 2000);
+  stateTimer = setTimeout(() => { setState("idle"); nextThink = now() + rnd(2000, 5000); }, rnd(2500, 5000));
 }
 
 // ----- Activités longues -----
@@ -537,7 +547,7 @@ async function pollCursor() {
   if (state !== "sleep") {
     const dx = clamp((x - centerX()) / L(120), -1, 1) * 2.4 * facing;
     const dy = clamp((y - (pos.y + H - L(60))) / L(200), -1, 1) * 1.8;
-    el.eyes.style.transform = `translate(${dx}px, ${dy}px)`;
+    el.eyes.forEach((n) => (n.style.transform = `translate(${dx}px, ${dy}px)`));
   }
 
   // Zone cliquable = uniquement le lapin (le reste de la fenêtre est traversé)
