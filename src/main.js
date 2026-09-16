@@ -204,8 +204,8 @@ let zoomLeft = 0;                   // dashes restants pendant les zoomies
 let airT0 = 0, airDur = 0, airPeak = 0; // arc vertical (binky)
 let furniture = [];                 // [{uid,type,sx,sw}] positions physiques (fenêtre scène)
 let arriveCb = null;                // action à faire à l'arrivée d'une balade ciblée
-let nextPoop = Date.now() + 6 * 60e3;
-const PRICES = { water: 15, food: 15, treats: 25, bed: 40, stick: 10, ball: 12, rug: 8 };
+let nextPoop = Date.now() + 40e3;
+const PRICES = { water: 30, food: 30, treats: 55, bed: 90, stick: 20, ball: 24, rug: 16 };
 const NAMES = { water: "une gamelle d'eau", food: "une gamelle de foin", treats: "un pot à friandises", bed: "un panier douillet", stick: "une branche de pommier", ball: "une balle en osier", rug: "un petit tapis" };
 
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -583,7 +583,7 @@ function nibble() {
 
 // ----- Crottes (la monnaie) -----
 function poop() {
-  nextPoop = now() + rnd(4, 9) * 60e3;
+  nextPoop = now() + rnd(90, 210) * 1000;
   clearTimeout(stateTimer);
   setState("poop");
   stateTimer = setTimeout(() => {
@@ -630,7 +630,7 @@ function useFurniture() {
     if (cls === "treat") burst("♥", 2);
     stateTimer = setTimeout(() => {
       addXp(xp);
-      if (cls === "eat") nextPoop = Math.min(nextPoop, now() + rnd(40, 100) * 1000);
+      if (cls === "eat") nextPoop = Math.min(nextPoop, now() + rnd(20, 50) * 1000);
       if (cls === "chew") save.nibbles++;
       setState("idle");
       nextThink = now() + rnd(3000, 7000);
