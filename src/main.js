@@ -202,7 +202,7 @@ function setFacing(dir) {
   if (dir === facing) return;
   facing = dir;
   el.bunny.classList.toggle("facing-left", facing < 0);
-  el.bunny.style.setProperty("--face", facing);
+  document.documentElement.style.setProperty("--face", facing);
 }
 function say(text, ms = 2600) {
   el.bubble.textContent = text;
