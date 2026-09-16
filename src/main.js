@@ -69,6 +69,7 @@ const SAY = {
   chase: ["?", "C'est quoi ça ?", "*chasse le curseur*", "Attrapé ! ...ou pas.", "*renifle le curseur*"],
   held: ["Hé !", "Repose-moi !", "Wooo", "*pattes qui pendouillent*", "Où on va ?"],
   land: ["*pouf*", "Ouf.", "*s'ébroue*", "Encore !"],
+  back: ["Te revoilà ! ♥", "Tu m'as manqué !", "*saute de joie* Coucou !", "Enfin ! Je m'ennuyais."],
   scrollAlert: (m) => [`Hé ! Ça fait ${m} min de scroll... 🐰`, `${m} min de Reels ?! Allez, ça suffit.`, `Bon. ${m} minutes. Je m'en occupe.`],
   scrollDone: ["Et hop, minimisé ! Tu peux le reprendre, promis 😌", "Voilà. Ta cervelle me dira merci.", "*époussette ses pattes* Fait."],
   scrollAbort: ["Bon, d'accord...", "Ah, tu as changé toi-même. Parfait."],
@@ -256,8 +257,10 @@ async function init() {
   H = Math.round(CFG.winH * scale);
   await computeBounds();
 
-  pos = { x: maxX - L(140), y: ground };
+  const lastX = Number(localStorage.getItem("boune.lastX"));
+  pos = { x: lastX ? clamp(lastX, minX, maxX) : maxX - L(140), y: ground };
   setWinPos(pos.x, pos.y);
+  setInterval(() => { try { localStorage.setItem("boune.lastX", String(Math.round(pos.x))); } catch {} }, 15e3);
   await win.setIgnoreCursorEvents(true);
 
   applyAccessories();
@@ -431,7 +434,17 @@ async function pollCursor() {
   const c = await invoke("cursor_pos").catch(() => null);
   if (!c) return;
   const [x, y] = c;
-  if (Math.abs(x - cursor.x) > 1 || Math.abs(y - cursor.y) > 1) cursor.lastMove = now();
+  if (Math.abs(x - cursor.x) > 1 || Math.abs(y - cursor.y) > 1) {
+    const away = now() - cursor.lastMove;
+    cursor.lastMove = now();
+    if (away > 15 * 60e3 && state === "sleep") {
+      wake(false);
+      setState("surprised");
+      say(pick(SAY.back), 2800);
+      burst("♥", 2);
+      stateTimer = setTimeout(() => { setState("idle"); nextThink = now() + 3000; }, 600);
+    }
+  }
   cursor.x = x; cursor.y = y;
 
   // Regard vers le curseur (petit décalage des yeux)

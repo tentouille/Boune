@@ -144,6 +144,10 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Un seul lapin à la fois : relancer l'exe réveille l'instance existante
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            let _ = app.emit("tray", "home".to_string());
+        }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .invoke_handler(tauri::generate_handler![
             cursor_pos,
