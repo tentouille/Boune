@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Réglages de Boune</title>
+  <style>
+    :root {
+      --bg: #fff7f9; --card: #ffffff; --ink: #4a3a42; --muted: #9a8790;
+      --pink: #ff7b9c; --pink-soft: #ffc9d6; --line: #f3dde4;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 "Segoe UI", system-ui, sans-serif; user-select: none; }
+    body { padding: 18px 20px 24px; }
+    h1 { margin: 0 0 2px; font-size: 20px; }
+    h1 small { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 6px; }
+    p.hint { margin: 0 0 16px; color: var(--muted); font-size: 12.5px; }
+    section { background: var(--card); border: 1.5px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 12px; }
+    section h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--pink); }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; }
+    .row + .row { border-top: 1px dashed var(--line); }
+    label { flex: 1; }
+    label small { display: block; color: var(--muted); font-size: 11.5px; }
+    input[type=number], input[type=text], select {
+      width: 110px; padding: 5px 8px; border: 1.5px solid var(--line); border-radius: 8px; font: inherit; color: var(--ink); background: #fff; outline: none;
+    }
+    input[type=text] { width: 100%; }
+    input:focus, select:focus { border-color: var(--pink-soft); }
+    input[type=range] { width: 130px; accent-color: var(--pink); }
+    .toggle { position: relative; width: 42px; height: 24px; flex: none; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle span { position: absolute; inset: 0; background: #e8dde1; border-radius: 24px; transition: .2s; cursor: pointer; }
+    .toggle span::before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+    .toggle input:checked + span { background: var(--pink); }
+    .toggle input:checked + span::before { transform: translateX(18px); }
+    .actions { display: flex; gap: 10px; margin-top: 4px; }
+    button { flex: 1; padding: 9px 12px; border: 0; border-radius: 10px; font: inherit; font-weight: 600; cursor: pointer; background: var(--pink); color: #fff; }
+    button.ghost { background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
+    button.danger { background: #fff; color: #d64562; border: 1.5px solid #f5c2cc; }
+    #saved { text-align: center; color: var(--muted); font-size: 12px; height: 16px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Boune <small>réglages</small></h1>
+  <p class="hint">Les changements s'appliquent immédiatement.</p>
+
+  <section>
+    <h2>Général</h2>
+    <div class="row">
+      <label>Lancer avec Windows<small>Boune apparaît à l'ouverture de session</small></label>
+      <div class="toggle"><input type="checkbox" id="autostart"><span></span></div>
+    </div>
+    <div class="row">
+      <label>Taille<small>petite ↔ grande</small></label>
+      <input type="range" id="size" min="0.7" max="1.5" step="0.05">
+    </div>
+    <div class="row">
+      <label>Vitesse de balade</label>
+      <select id="speed">
+        <option value="1.6">Tranquille</option>
+        <option value="2.6">Normale</option>
+        <option value="4">Énergique</option>
+      </select>
+    </div>
+    <div class="row">
+      <label>Bavardage<small>fréquence des petites phrases</small></label>
+      <select id="chatter">
+        <option value="0">Silencieuse</option>
+        <option value="0.5">Discrète</option>
+        <option value="1">Normale</option>
+        <option value="1.8">Bavarde</option>
+      </select>
+    </div>
+  </section>
+
+  <section>
+    <h2>Dodo</h2>
+    <div class="row">
+      <label>Siestes spontanées</label>
+      <select id="nap">
+        <option value="0">Jamais</option>
+        <option value="0.02">Rares</option>
+        <option value="0.04">Normales</option>
+        <option value="0.1">Grosse dormeuse</option>
+      </select>
+    </div>
+    <div class="row">
+      <label>S'endort si tu es absent<small>minutes sans bouger la souris</small></label>
+      <input type="number" id="idleMin" min="1" max="120">
+    </div>
+  </section>
+
+  <section>
+    <h2>Anti doom-scroll</h2>
+    <div class="row">
+      <label>Activé<small>elle minimise la fenêtre, tu peux la rouvrir</small></label>
+      <div class="toggle"><input type="checkbox" id="scrollOn"><span></span></div>
+    </div>
+    <div class="row">
+      <label>Tolérance<small>minutes avant qu'elle intervienne</small></label>
+      <input type="number" id="scrollMin" min="1" max="120">
+    </div>
+    <div class="row">
+      <label>Répit après intervention<small>minutes</small></label>
+      <input type="number" id="cooldownMin" min="1" max="180">
+    </div>
+    <div class="row" style="flex-direction: column; align-items: stretch; gap: 4px;">
+      <label>Mots surveillés dans le titre de la fenêtre<small>séparés par des virgules, sans distinction de casse</small></label>
+      <input type="text" id="patterns">
+    </div>
+  </section>
+
+  <div class="actions">
+    <button class="ghost" id="defaults">Valeurs par défaut</button>
+    <button class="danger" id="reset">Effacer la progression</button>
+  </div>
+  <div id="saved"></div>
+
+  <script>
+    const { invoke } = window.__TAURI__.core;
+    const { emit } = window.__TAURI__.event;
+    const KEY = "boune.settings.v1";
+    const DEF = { size: 1, speed: 2.6, chatter: 1, nap: 0.04, idleMin: 6, scrollOn: true, scrollMin: 3, cooldownMin: 10, patterns: "tiktok, reels, shorts" };
+
+    const $ = (id) => document.getElementById(id);
+    const fields = Object.keys(DEF);
+
+    function load() {
+      let s = {};
+      try { s = JSON.parse(localStorage.getItem(KEY)) || {}; } catch {}
+      return { ...DEF, ...s };
+    }
+    function fill(s) {
+      for (const k of fields) {
+        const el = $(k);
+        if (el.type === "checkbox") el.checked = !!s[k];
+        else el.value = s[k];
+      }
+    }
+    function read() {
+      const s = {};
+      for (const k of fields) {
+        const el = $(k);
+        s[k] = el.type === "checkbox" ? el.checked : el.type === "text" ? el.value : Number(el.value);
+      }
+      return s;
+    }
+    let savedT = 0;
+    function save() {
+      const s = read();
+      try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {}
+      emit("settings-changed", s);
+      $("saved").textContent = "Enregistré ✓";
+      clearTimeout(savedT);
+      savedT = setTimeout(() => ($("saved").textContent = ""), 1200);
+    }
+
+    fill(load());
+    for (const k of fields) $(k).addEventListener(k === "patterns" ? "change" : "input", save);
+
+    invoke("autostart_get").then((v) => ($("autostart").checked = v)).catch(() => {});
+    $("autostart").addEventListener("change", (e) => {
+      invoke("autostart_set", { enabled: e.target.checked }).catch(() => { e.target.checked = !e.target.checked; });
+    });
+
+    $("defaults").addEventListener("click", () => { fill(DEF); save(); });
+    $("reset").addEventListener("click", (e) => {
+      if (e.target.dataset.armed) {
+        emit("reset-progress");
+        e.target.textContent = "Progression effacée";
+        delete e.target.dataset.armed;
+        setTimeout(() => (e.target.textContent = "Effacer la progression"), 1500);
+      } else {
+        e.target.dataset.armed = "1";
+        e.target.textContent = "Sûr ? Clique encore";
+        setTimeout(() => { delete e.target.dataset.armed; e.target.textContent = "Effacer la progression"; }, 3000);
+      }
+    });
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
+  </script>
+</body>
+</html>

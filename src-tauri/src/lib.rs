@@ -5,8 +5,9 @@ use serde::Serialize;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
-    AppHandle, Emitter,
+    AppHandle, Emitter, Manager, WindowEvent,
 };
+use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 
 /// Infos sur la fenêtre actuellement au premier plan.
 #[derive(Serialize)]
@@ -89,14 +90,37 @@ fn minimize_window(hwnd: isize) -> bool {
     native::minimize(hwnd)
 }
 
+/// Affiche la fenêtre de réglages (déclarée cachée dans tauri.conf.json).
+#[tauri::command]
+fn open_settings(app: AppHandle) {
+    if let Some(w) = app.get_webview_window("settings") {
+        let _ = w.center();
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+    }
+}
+
+#[tauri::command]
+fn autostart_get(app: AppHandle) -> bool {
+    app.autolaunch().is_enabled().unwrap_or(false)
+}
+
+#[tauri::command]
+fn autostart_set(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let al = app.autolaunch();
+    if enabled { al.enable() } else { al.disable() }.map_err(|e| e.to_string())
+}
+
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
+    let settings = MenuItem::with_id(app, "settings", "Réglages…", true, None::<&str>)?;
     let stats = MenuItem::with_id(app, "stats", "Voir les stats", true, None::<&str>)?;
     let sleep = MenuItem::with_id(app, "sleep", "Dodo / Réveil", true, None::<&str>)?;
     let home = MenuItem::with_id(app, "home", "Ramener Boune ici", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quitter", true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
-        &[&stats, &sleep, &home, &PredefinedMenuItem::separator(app)?, &quit],
+        &[&settings, &stats, &sleep, &home, &PredefinedMenuItem::separator(app)?, &quit],
     )?;
 
     let mut tray = TrayIconBuilder::new()
@@ -105,6 +129,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "quit" => app.exit(0),
+            "settings" => open_settings(app.clone()),
             other => {
                 let _ = app.emit("tray", other.to_string());
             }
@@ -119,14 +144,26 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .invoke_handler(tauri::generate_handler![
             cursor_pos,
             foreground_info,
-            minimize_window
+            minimize_window,
+            open_settings,
+            autostart_get,
+            autostart_set
         ])
         .setup(|app| {
             build_tray(app.handle())?;
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if window.label() == "settings" {
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
         })
         .run(tauri::generate_context!())
         .expect("erreur au lancement de Boune");

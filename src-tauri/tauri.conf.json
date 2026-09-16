@@ -21,6 +21,17 @@
         "resizable": false,
         "shadow": false,
         "focus": false
+      },
+      {
+        "label": "settings",
+        "url": "settings.html",
+        "title": "Réglages de Boune",
+        "width": 400,
+        "height": 700,
+        "resizable": false,
+        "minimizable": false,
+        "visible": false,
+        "center": true
       }
     ],
     "security": {

@@ -5,7 +5,7 @@
 //  rien quand Boune ne bouge pas, et des sondages IPC lents.
 // ============================================================
 
-const { getCurrentWindow, currentMonitor, PhysicalPosition } = window.__TAURI__.window;
+const { getCurrentWindow, currentMonitor, availableMonitors, PhysicalPosition } = window.__TAURI__.window;
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 
@@ -26,10 +26,37 @@ const CFG = {
   chaseChance: 0.22,
   chaseRadius: 380,                // px logiques
   scrollPatterns: /tiktok|reels|shorts/i,
+  scrollOn: true,
   scrollLimitSec: 180,             // temps de doom-scroll toléré
   scrollGraceSec: 30,              // reset du compteur après X s ailleurs
   closeCooldownMs: 10 * 60e3,
+  activityChance: 0.06,            // activités longues (lecture, musique…)
+  chatter: 1,                      // multiplicateur des petites phrases
+  size: 1,
 };
+
+// Réglages utilisateur (fenêtre Réglages) : surcharge CFG
+const SETTINGS_KEY = "boune.settings.v1";
+function applySettings(s) {
+  if (!s) return;
+  if (s.speed) CFG.hopSpeed = s.speed;
+  if (s.chatter != null) CFG.chatter = s.chatter;
+  if (s.nap != null) CFG.napChance = s.nap;
+  if (s.idleMin) CFG.sleepAfterUserIdleMs = s.idleMin * 60e3;
+  if (s.scrollOn != null) CFG.scrollOn = s.scrollOn;
+  if (s.scrollMin) CFG.scrollLimitSec = s.scrollMin * 60;
+  if (s.cooldownMin) CFG.closeCooldownMs = s.cooldownMin * 60e3;
+  if (s.patterns != null) {
+    const words = s.patterns.split(",").map((w) => w.trim()).filter(Boolean)
+      .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    CFG.scrollPatterns = words.length ? new RegExp(words.join("|"), "i") : /$^/;
+  }
+  if (s.size) {
+    CFG.size = s.size;
+    document.documentElement.style.setProperty("--size", s.size);
+  }
+}
+try { applySettings(JSON.parse(localStorage.getItem(SETTINGS_KEY))); } catch {}
 
 // ----- Répliques -----
 const SAY = {
@@ -57,6 +84,23 @@ const NIBBLES = [
   { text: "*mâchouille le câble d'alim* ...ça pique un peu.", svg: cable("#1f2937") },
   { text: "*grignote un coin de la barre des tâches*", svg: cable("#3b82f6") },
 ];
+
+// Activités longues : Boune s'occupe un moment, un clic l'interrompt
+const ACTIVITIES = [
+  { start: "*ouvre un livre*", end: "*referme le livre* ...la fin était triste.", svg: book(), fx: null, dur: [60e3, 180e3] },
+  { start: "*met de la musique*", end: "*range son casque* Ça donne la pêche !", svg: radio(), fx: "♪", dur: [60e3, 150e3] },
+  { start: "*plante une carotte*", end: "*arrose la carotte* Elle poussera un jour.", svg: sprout(), fx: null, dur: [50e3, 120e3] },
+  { start: "*regarde par la fenêtre*", end: "*soupire* Il y avait un oiseau.", svg: null, fx: null, dur: [40e3, 90e3] },
+];
+function book() {
+  return `<svg viewBox="0 0 80 34"><path d="M20 6 h22 v24 h-22 z" fill="#fde68a" stroke="#d6a84a"/><path d="M42 6 h22 v24 h-22 z" fill="#fef3c7" stroke="#d6a84a"/><path d="M25 12 h12 M25 17 h12 M25 22 h9 M47 12 h12 M47 17 h12" stroke="#c7b27a" stroke-width="1.2"/></svg>`;
+}
+function radio() {
+  return `<svg viewBox="0 0 80 34"><rect x="18" y="8" width="44" height="22" rx="4" fill="#94a3b8" stroke="#64748b"/><circle cx="30" cy="19" r="6" fill="#334155"/><circle cx="50" cy="19" r="6" fill="#334155"/><path d="M40 8 l10 -6" stroke="#64748b" stroke-width="2"/></svg>`;
+}
+function sprout() {
+  return `<svg viewBox="0 0 80 34"><rect x="20" y="22" width="40" height="10" rx="3" fill="#a16207"/><path d="M40 22 v-10" stroke="#4ade80" stroke-width="2.5"/><path d="M40 16 q-8 -8 -12 -2 q6 6 12 2z M40 12 q8 -8 12 -2 q-6 6 -12 2z" fill="#4ade80"/></svg>`;
+}
 
 function cable(color) {
   return `<svg viewBox="0 0 80 34"><path d="M2 22 q14 -22 28 0 t28 0" stroke="${color}" stroke-width="3.5" fill="none" stroke-linecap="round"/><rect x="58" y="14" width="18" height="13" rx="2.5" fill="#cbd5e1" stroke="#94a3b8"/><rect x="62" y="10" width="10" height="5" fill="#94a3b8"/></svg>`;
@@ -151,11 +195,13 @@ function setState(s) {
   state = s;
   el.bunny.classList.add(s);
   clearTimeout(stateTimer);
+  clearInterval(activityFx);
 }
 function setFacing(dir) {
   if (dir === facing) return;
   facing = dir;
   el.bunny.classList.toggle("facing-left", facing < 0);
+  el.bunny.style.setProperty("--face", facing);
 }
 function say(text, ms = 2600) {
   el.bubble.textContent = text;
@@ -186,13 +232,19 @@ function twitch() {
   el.bunny.classList.add(c);
   setTimeout(() => el.bunny.classList.remove(c), 600);
 }
+let posDirty = false;
 function setWinPos(x, y) {
   pos.x = x; pos.y = y;
-  if (posPending) return;
+  posDirty = true;
+  flushPos();
+}
+function flushPos() {
+  if (posPending || !posDirty) return;
   posPending = true;
-  win.setPosition(new PhysicalPosition(Math.round(x), Math.round(y)))
+  posDirty = false;
+  win.setPosition(new PhysicalPosition(Math.round(pos.x), Math.round(pos.y)))
     .catch(() => {})
-    .finally(() => { posPending = false; });
+    .finally(() => { posPending = false; flushPos(); });
 }
 // Centre horizontal de Boune (physique)
 const centerX = () => pos.x + W / 2;
@@ -222,9 +274,15 @@ async function init() {
   setInterval(computeBounds, 30e3); // si la barre des tâches / l'écran change
 }
 
-async function computeBounds() {
-  const mon = await currentMonitor().catch(() => null);
-  if (!mon) return;
+// Limites de l'écran sur lequel se trouve le curseur (multi-écrans)
+async function boundsUnderCursor() {
+  const mons = await availableMonitors().catch(() => []);
+  const m = mons.find((m) =>
+    cursor.x >= m.position.x && cursor.x < m.position.x + m.size.width &&
+    cursor.y >= m.position.y && cursor.y < m.position.y + m.size.height);
+  if (m) setBoundsFrom(m);
+}
+function setBoundsFrom(mon) {
   const wa = mon.workArea || {
     position: mon.position,
     size: { width: mon.size.width, height: mon.size.height - Math.round(48 * scale) },
@@ -232,6 +290,12 @@ async function computeBounds() {
   minX = wa.position.x;
   maxX = wa.position.x + wa.size.width - W;
   ground = wa.position.y + wa.size.height - H;
+}
+
+async function computeBounds() {
+  const mon = await currentMonitor().catch(() => null);
+  if (!mon) return;
+  setBoundsFrom(mon);
   if (state !== "held" && state !== "fall") {
     setWinPos(clamp(pos.x, minX, maxX), ground);
   }
@@ -283,12 +347,33 @@ function think() {
   const r = Math.random();
   const userIdle = t - cursor.lastMove > CFG.sleepAfterUserIdleMs;
 
-  if (userIdle || r < CFG.napChance) return nap();
-  if (r < CFG.napChance + CFG.nibbleChance) return nibble();
-  if (r < CFG.napChance + CFG.nibbleChance + CFG.chaseChance && cursorNear()) return chase();
-  if (r < 0.55) return wander();
-  if (r < 0.68) return say(pick(SAY.idle), 2200);
+  let acc = 0;
+  if (userIdle || r < (acc += CFG.napChance)) return nap();
+  if (r < (acc += CFG.nibbleChance)) return nibble();
+  if (r < (acc += CFG.activityChance)) return activity();
+  if (r < (acc += CFG.chaseChance) && cursorNear()) return chase();
+  if (r < 0.6) return wander();
+  if (r < 0.6 + 0.13 * CFG.chatter) return say(pick(SAY.idle), 2200);
   // sinon : rien, elle profite
+}
+
+// ----- Activités longues -----
+let activityFx = 0;
+function activity() {
+  const a = pick(ACTIVITIES);
+  if (a.svg) { el.prop.innerHTML = a.svg; el.prop.classList.remove("hidden"); }
+  setState("activity");
+  say(a.start, 2200);
+  if (a.fx) activityFx = setInterval(() => burst(a.fx, 1), 1800);
+  stateTimer = setTimeout(() => endActivity(a.end), rnd(...a.dur));
+}
+function endActivity(text) {
+  clearInterval(activityFx);
+  el.prop.classList.add("hidden");
+  if (text) say(text, 3000);
+  addXp(2);
+  setState("idle");
+  nextThink = now() + rnd(3000, 7000);
 }
 
 function wander() {
@@ -390,6 +475,9 @@ el.bunny.addEventListener("pointerup", () => {
 });
 el.bunny.addEventListener("pointercancel", () => { if (grab && grab.moved) drop(); grab = null; });
 document.addEventListener("contextmenu", (e) => e.preventDefault());
+el.bunny.addEventListener("pointerdown", (e) => {
+  if (e.button === 2) invoke("open_settings").catch(() => {});
+});
 
 function startHold() {
   clearTimeout(stateTimer);
@@ -407,9 +495,10 @@ function startHold() {
     setWinPos(cursor.x - grab.dx, cursor.y - grab.dy);
   }, 16);
 }
-function drop() {
+async function drop() {
   clearInterval(holdTimer);
   vy = 0;
+  await boundsUnderCursor();
   setWinPos(clamp(pos.x, minX, maxX), Math.min(pos.y, ground));
   if (pos.y >= ground - 1) {
     setState("idle");
@@ -421,6 +510,7 @@ function drop() {
 function pet() {
   if (state === "sleep") { wake(true); return; }
   if (state === "mission" || state === "push" || state === "fall") return;
+  if (state === "activity") { el.prop.classList.add("hidden"); }
   const t = now();
   petStreak = t - petStreakT < 1200 ? petStreak + 1 : 1;
   petStreakT = t;
@@ -443,7 +533,7 @@ function pet() {
 async function pollForeground() {
   const fg = await invoke("foreground_info").catch(() => null);
   const t = now();
-  if (fg && fg.title !== "Boune" && CFG.scrollPatterns.test(fg.title)) {
+  if (CFG.scrollOn && fg && fg.title !== "Boune" && CFG.scrollPatterns.test(fg.title)) {
     if (scroll.hwnd !== fg.hwnd) scroll.sec = 0;
     scroll.hwnd = fg.hwnd;
     scroll.sec += CFG.fgPollMs / 1000;
@@ -493,6 +583,15 @@ async function missionArrived() {
   }, stillThere ? 1600 : 400);
 }
 
+// ----- Fenêtre de réglages -----
+listen("settings-changed", ({ payload }) => applySettings(payload));
+listen("reset-progress", () => {
+  save = { xp: 0, pets: 0, nibbles: 0, closes: 0, minutes: 0, createdAt: now() };
+  persist();
+  applyAccessories();
+  say("Tout oublié... on recommence ? 🐰", 3000);
+});
+
 // ----- Menu de la barre système -----
 listen("tray", ({ payload }) => {
   switch (payload) {
@@ -503,7 +602,9 @@ listen("tray", ({ payload }) => {
     case "home":
       clearTimeout(stateTimer); clearInterval(holdTimer); grab = null; mission = null;
       el.zzz.classList.add("hidden"); el.prop.classList.add("hidden"); el.bunny.classList.remove("angry");
-      setWinPos(clamp(cursor.x - W / 2, minX, maxX), ground);
+      boundsUnderCursor().then(() => {
+        setWinPos(clamp(cursor.x - W / 2, minX, maxX), ground);
+      });
       setState("surprised");
       say("Téléportée !", 1500);
       stateTimer = setTimeout(() => { setState("idle"); nextThink = now() + 2000; }, 600);

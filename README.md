@@ -11,7 +11,9 @@ Petit lapin compagnon qui se balade en bas de ton écran. Léger (Tauri 2 : ~35 
 - **Grignote** des trucs : le câble internet, celui de la souris, une carotte, un cookie…
 - **Anti doom-scroll** : si la fenêtre active contient `TikTok`, `Reels` ou `Shorts` pendant plus de 3 min, elle traverse l'écran, pousse la fenêtre et la **minimise** (réversible, tu la reprends depuis la barre des tâches). Puis 10 min de répit.
 - **Progression** : XP pour les câlins, grignotages, scrolls stoppés et temps passé ensemble. Niveau 3 → écharpe, 5 → nœud, 8 → couronne de fleurs.
-- **Menu dans la barre système** : stats, dodo/réveil, la ramener sous le curseur, quitter.
+- **Activités longues** : elle lit un livre, écoute de la musique, plante une carotte, regarde par la fenêtre… pendant 1 à 3 min. Un clic l'interrompt.
+- **Réglages** (clic droit sur Boune, ou menu barre système) : lancement avec Windows, taille, vitesse, bavardage, siestes, seuil et mots-clés anti-scroll, remise à zéro de la progression. Appliqués en direct.
+- **Menu dans la barre système** : réglages, stats, dodo/réveil, la ramener sous le curseur (fonctionne sur l'écran où est la souris), quitter.
 
 ## Lancer
 
@@ -25,25 +27,26 @@ Prérequis : Node 18+, Rust stable, WebView2 (déjà présent sur Windows 10/11)
 
 ## Réglages
 
-Tout est dans l'objet `CFG` en haut de `src/main.js` : vitesse, fréquence des siestes, seuil anti-scroll, motifs de titre surveillés, etc.
-Les répliques sont dans `SAY` et `NIBBLES` juste en dessous.
+Les réglages courants sont dans la fenêtre **Réglages** (clic droit sur Boune). Les valeurs par défaut et les réglages plus fins sont dans l'objet `CFG` en haut de `src/main.js`.
+Les répliques sont dans `SAY`, les objets à grignoter dans `NIBBLES`, les activités longues dans `ACTIVITIES`.
 
 ## Structure
 
 ```
 src/            front (HTML + CSS + JS vanilla, aucune dépendance)
   index.html    le SVG de Boune
+  settings.html fenêtre de réglages (autonome)
   style.css     tous les états / animations
   main.js       machine à états, souris, progression
 src-tauri/      côté natif Rust
-  src/lib.rs    commandes Win32 (souris globale, fenêtre active, minimiser) + tray
+  src/lib.rs    commandes Win32 (souris globale, fenêtre active, minimiser), tray, autostart
 ```
 
-La sauvegarde (XP, compteurs) est dans le `localStorage` de la webview.
+La sauvegarde (XP, compteurs) et les réglages sont dans le `localStorage` de la webview.
 
 ## Idées pour la suite
 
 - Autres animaux (chat, chien) : dupliquer le SVG et les classes d'état.
-- Fenêtre de réglages plutôt que d'éditer `CFG`.
-- Plus d'événements longs (jardinage, lecture) et d'objets à grignoter.
-- Support multi-écrans (elle reste sur l'écran principal pour l'instant).
+- Plus d'objets à grignoter et d'activités.
+- Balade d'un écran à l'autre toute seule (pour l'instant elle change d'écran quand on la porte ou via « Ramener Boune ici »).
+- Sons discrets (optionnels).

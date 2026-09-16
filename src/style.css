@@ -30,8 +30,8 @@ html, body {
   margin-left: -55px;
   cursor: grab;
   transform-origin: 50% 100%;
+  transform: scaleX(var(--face, 1)) scale(var(--size, 1));
 }
-#bunny.facing-left { transform: scaleX(-1); }
 #bunny.held { cursor: grabbing; }
 
 #sprite {
@@ -154,6 +154,13 @@ html, body {
   100% { transform: scale(1, 1); }
 }
 
+.activity #sprite { animation: breathe 3.2s ease-in-out infinite; }
+.activity #head { animation: readBob 2.2s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 80%; }
+@keyframes readBob {
+  0%, 100% { transform: rotate(0); }
+  50%      { transform: rotate(-4deg) translateY(1px); }
+}
+
 .nibble #head { animation: nom .22s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 80%; }
 @keyframes nom {
   0%, 100% { transform: rotate(0) translateY(0); }
@@ -215,9 +222,9 @@ html, body {
 #bubble {
   position: absolute;
   left: 50%;
-  bottom: 138px;
+  bottom: calc(126px * var(--size, 1) + 12px);
   transform: translateX(-50%);
-  max-width: 210px;
+  max-width: 226px;
   padding: 7px 11px;
   background: #fff;
   color: #4a3a42;
