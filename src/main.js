@@ -76,6 +76,9 @@ const SAY = {
   chew: ["*ronge la branche*", "*grignote* c'est mieux qu'un câble.", "*croque* ...bon, presque."],
   bed: ["*s'installe dans son panier*", "Mon panier ♥", "*tourne trois fois et se couche*"],
   bought: (n) => `Oh ! ${n} ! ✨`,
+  flop: ["*se laisse tomber sur le flanc*", "*floomf*", "Trop bien, là...", "*totalement ramollie*", "*fond dans le sol*"],
+  zoom: ["*ZOOMIES*", "WIIIII", "*part en trombe*", "Attrape-moi !", "*fait trois fois le tour*"],
+  groom: ["*se lave le museau*", "*lisse ses oreilles*", "*fait sa toilette*", "Faut rester propre."],
   lookout: ["*se dresse* ...", "C'était quoi ce bruit ?", "*scrute l'horizon*", "*oreilles en radar*", "Quelqu'un ?"],
   back: ["Te revoilà ! ♥", "Tu m'as manqué !", "*saute de joie* Coucou !", "Enfin ! Je m'ennuyais."],
   scrollAlert: (m) => [`Hé ! Ça fait ${m} min de scroll... 🐰`, `${m} min de Reels ?! Allez, ça suffit.`, `Bon. ${m} minutes. Je m'en occupe.`],
@@ -194,9 +197,12 @@ let posPending = false;
 let bubbleTimer = 0;
 let stateTimer = 0;
 let holdTimer = 0;
+let hop = null;                     // bond en cours { ph, t0, fromX, dx, peak, ... }
+let zoomLeft = 0;                   // dashes restants pendant les zoomies
+let airT0 = 0, airDur = 0, airPeak = 0; // arc vertical (binky)
 let furniture = [];                 // [{uid,type,sx,sw}] positions physiques (fenêtre scène)
 let arriveCb = null;                // action à faire à l'arrivée d'une balade ciblée
-let nextPoop = Date.now() + rnd(4, 8) * 60e3;
+let nextPoop = Date.now() + 6 * 60e3;
 const PRICES = { water: 15, food: 15, treats: 25, bed: 40, stick: 10, ball: 12, rug: 8 };
 const NAMES = { water: "une gamelle d'eau", food: "une gamelle de foin", treats: "un pot à friandises", bed: "un panier douillet", stick: "une branche de pommier", ball: "une balle en osier", rug: "un petit tapis" };
 
@@ -207,12 +213,15 @@ const L = (px) => px * scale; // logique -> physique
 const now = () => Date.now();
 
 // ----- Utilitaires visuels -----
-const UPRIGHT = new Set(["surprised", "push", "held", "lookout", "treat"]);
+const UPRIGHT = new Set(["surprised", "push", "held", "lookout", "treat", "groom"]);
+function setPhase(ph) { if (ph) el.bunny.dataset.phase = ph; else delete el.bunny.dataset.phase; }
 function setState(s) {
   el.bunny.classList.remove(state);
   state = s;
   el.bunny.classList.add(s);
   el.bunny.classList.toggle("upright", UPRIGHT.has(s));
+  hop = null;
+  setPhase("");
   clearTimeout(stateTimer);
   clearInterval(activityFx);
 }
@@ -333,16 +342,14 @@ function tick() {
       break;
     case "walk":
     case "chase":
-    case "mission": {
-      const speed = L(state === "mission" ? CFG.missionSpeed : state === "chase" ? CFG.chaseSpeed : CFG.hopSpeed);
-      const dx = targetX - pos.x;
-      if (Math.abs(dx) <= speed) {
-        setWinPos(clamp(targetX, minX, maxX), ground);
-        arrived();
-      } else {
-        setFacing(Math.sign(dx));
-        setWinPos(clamp(pos.x + Math.sign(dx) * speed, minX, maxX), ground);
-      }
+    case "mission":
+    case "zoom":
+      stepHop(t);
+      break;
+    case "binky": {
+      const p = (t - airT0) / airDur;
+      if (p >= 1) { setWinPos(pos.x, ground); setState("idle"); nextThink = t + rnd(2000, 5000); }
+      else setWinPos(pos.x, ground - airPeak * Math.sin(Math.PI * p));
       break;
     }
     case "fall":
@@ -370,16 +377,20 @@ function think() {
   const r = Math.random();
   const userIdle = t - cursor.lastMove > CFG.sleepAfterUserIdleMs;
 
+  const active = t - cursor.lastMove < 8000;
   let acc = 0;
   if (userIdle || r < (acc += CFG.napChance)) return nap();
   if (r < (acc += CFG.nibbleChance)) return nibble();
   if (r < (acc += CFG.activityChance)) return activity();
-  if (r < (acc += 0.07)) return lookout();
-  if (r < (acc += 0.16) && furniture.length) return useFurniture();
+  if (r < (acc += 0.06)) return groom();
+  if (r < (acc += 0.05)) return flop();
+  if (r < (acc += 0.06)) return lookout();
+  if (r < (acc += 0.05) && active) return binky();
+  if (r < (acc += 0.04) && active) return zoomies();
+  if (r < (acc += 0.14) && furniture.length) return useFurniture();
   if (r < (acc += CFG.chaseChance) && cursorNear()) return chase();
-  if (r < 0.6) return wander();
-  if (r < 0.6 + 0.13 * CFG.chatter) return say(pick(SAY.idle), 2200);
-  // sinon : rien, elle profite
+  if (Math.random() < 0.82) return wander();
+  say(pick(SAY.idle), 2200);
 }
 
 function lookout() {
@@ -407,6 +418,80 @@ function endActivity(text) {
   nextThink = now() + rnd(3000, 7000);
 }
 
+// ----- Locomotion par bonds -----
+function hopParams() {
+  const f = CFG.hopSpeed / 2.6;
+  if (state === "mission") return { dist: rnd(58, 78), peak: L(rnd(34, 44)), crouch: 55, air: 260, land: 60, pause: rnd(10, 50) };
+  if (state === "zoom")    return { dist: rnd(64, 86), peak: L(rnd(30, 40)), crouch: 45, air: 240, land: 55, pause: rnd(0, 30) };
+  if (state === "chase")   return { dist: rnd(46, 66), peak: L(rnd(28, 38)), crouch: 70, air: 300, land: 70, pause: rnd(30, 110) };
+  return { dist: rnd(30, 52) * f, peak: L(rnd(22, 30)), crouch: 120, air: 340, land: 90, pause: rnd(120, 320) / f };
+}
+function startHop() {
+  const p = hopParams();
+  const dxTotal = targetX - pos.x;
+  const dir = Math.sign(dxTotal) || facing;
+  setFacing(dir);
+  const step = Math.min(Math.abs(dxTotal), L(p.dist)) * dir;
+  hop = { ph: "crouch", t0: now(), fromX: pos.x, dx: step, peak: p.peak,
+          crouch: p.crouch, air: p.air, land: p.land, pause: p.pause,
+          arrive: Math.abs(dxTotal) <= L(p.dist) + 1 };
+  setPhase("crouch");
+}
+function stepHop(t) {
+  if (!hop) startHop();
+  const h = hop, e = t - h.t0;
+  if (h.ph === "crouch") {
+    if (e >= h.crouch) { h.ph = "air"; h.t0 = t; setPhase("air"); }
+  } else if (h.ph === "air") {
+    const p = Math.min(1, e / h.air);
+    const eased = p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+    setWinPos(clamp(h.fromX + h.dx * eased, minX, maxX), ground - h.peak * Math.sin(Math.PI * p));
+    if (p >= 1) { h.ph = "land"; h.t0 = t; setPhase("land"); setWinPos(clamp(h.fromX + h.dx, minX, maxX), ground); }
+  } else if (h.ph === "land") {
+    if (e >= h.land) {
+      setPhase("");
+      if (h.arrive) { hop = null; return arrived(); }
+      h.ph = "pause"; h.t0 = t;
+    }
+  } else if (h.ph === "pause") {
+    if (e >= h.pause) startHop();
+  }
+}
+
+// ----- Binky : bond de joie vrillé, sur place -----
+function binky() {
+  setState("binky");
+  burst("\u2665", 2);
+  if (Math.random() < 0.5 * CFG.chatter) say(pick(SAY.binky), 1500);
+  airT0 = now(); airDur = 600; airPeak = L(46);
+  addXp(1);
+}
+
+// ----- Flop : elle fond sur place -----
+function flop() {
+  setState("flop");
+  if (Math.random() < 0.5 * CFG.chatter) say(pick(SAY.flop), 2400);
+  stateTimer = setTimeout(() => { setState("idle"); nextThink = now() + rnd(2500, 6000); }, rnd(5000, 12000));
+}
+
+// ----- Toilette -----
+function groom() {
+  setState("groom");
+  if (Math.random() < 0.3 * CFG.chatter) say(pick(SAY.groom), 2000);
+  stateTimer = setTimeout(() => { addXp(1); setState("idle"); nextThink = now() + rnd(2500, 6000); }, rnd(3000, 6000));
+}
+
+// ----- Zoomies : plusieurs dashes rapides -----
+function zoomies() {
+  zoomLeft = Math.floor(rnd(3, 6));
+  if (Math.random() < 0.7 * CFG.chatter) say(pick(SAY.zoom), 1500);
+  nextZoom();
+}
+function nextZoom() {
+  targetX = clamp(minX + Math.random() * (maxX - minX), minX, maxX);
+  setState("zoom");
+}
+
 function wander() {
   arriveCb = null;
   const range = L(rnd(120, 420));
@@ -427,6 +512,10 @@ function goTo(x, cb) {
 }
 function arrived() {
   if (state === "mission") return missionArrived();
+  if (state === "zoom") {
+    if (--zoomLeft > 0) return nextZoom();
+    setState("idle"); nextThink = now() + rnd(2000, 4000); return;
+  }
   if (arriveCb) { const cb = arriveCb; arriveCb = null; setState("idle"); return cb(); }
   const wasChase = state === "chase";
   setState("idle");
@@ -618,9 +707,12 @@ async function drop() {
 }
 function pet() {
   if (state === "sleep") { wake(true); return; }
-  if (state === "mission" || state === "push" || state === "fall") return;
+  if (state === "flop") { setState("surprised"); say(pick(SAY.back), 1600);
+    stateTimer = setTimeout(() => { setState("idle"); nextThink = now() + 2000; }, 600); return; }
+  if (state === "mission" || state === "push" || state === "fall" || state === "binky") return;
   if (state === "activity" || state === "drink" || state === "eat") { el.prop.classList.add("hidden"); }
   arriveCb = null;
+  if (petStreak <= 2 && Math.random() < 0.35) { binky(); return; }
   const t = now();
   petStreak = t - petStreakT < 1200 ? petStreak + 1 : 1;
   petStreakT = t;

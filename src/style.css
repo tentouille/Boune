@@ -89,26 +89,62 @@ html, body {
   50%      { transform: scale(1.015, 0.985); }
 }
 
-.walk #sprite, .mission #sprite, .chase #sprite { animation: hop .42s ease-in-out infinite; }
-.mission #sprite { animation-duration: .3s; }
-@keyframes hop {
-  0%, 100% { transform: translateY(0) scale(1, 1); }
-  30%      { transform: translateY(-16px) scale(0.95, 1.07); }
-  65%      { transform: translateY(0) scale(1.07, 0.93); }
-}
-.walk #shadow, .mission #shadow, .chase #shadow { animation: shadowHop .42s ease-in-out infinite; }
-.mission #shadow { animation-duration: .3s; }
-@keyframes shadowHop {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  30%      { transform: scale(.8); opacity: .6; }
-}
-.walk .ear, .chase .ear, .mission .ear { animation: earBob .42s ease-in-out infinite; }
-@keyframes earBob {
-  0%, 100% { transform: rotate(0deg); }
-  40%      { transform: rotate(-8deg); }
-}
-#ear-r.ear { animation-delay: .05s; }
+/* ===== Locomotion par bonds : l'arc vertical est piloté en JS (la fenêtre
+   monte et descend), le CSS ne fait que l'écrasement/étirement par phase ===== */
+.walk #sprite, .chase #sprite, .mission #sprite, .zoom #sprite { transition: transform .12s ease; }
+.walk .ear, .chase .ear, .mission .ear, .zoom .ear { transition: transform .14s ease; }
+#bunny[data-phase="crouch"] #sprite { transform: scale(1.14, .84); }
+#bunny[data-phase="air"]    #sprite { transform: scale(.92, 1.10); }
+#bunny[data-phase="land"]   #sprite { transform: scale(1.18, .80); }
+#bunny[data-phase="crouch"] .ear { transform: rotate(8deg); }
+#bunny[data-phase="air"]    .ear { transform: rotate(-18deg); }
+#bunny[data-phase="land"]   .ear { transform: rotate(12deg); }
+#bunny[data-phase="air"]    #shadow { transform: scale(.62); opacity: .4; transition: transform .18s, opacity .18s; }
+#bunny[data-phase="crouch"] #shadow, #bunny[data-phase="land"] #shadow { transform: scale(1.15); opacity: 1; }
 
+/* ===== Nez qui frémit en permanence (très lapin) ===== */
+.nose { transform-box: fill-box; transform-origin: 50% 0; animation: noseTwitch 1.8s ease-in-out infinite; }
+@keyframes noseTwitch {
+  0%, 38%, 62%, 100% { transform: translateY(0) scaleY(1); }
+  44%, 56% { transform: translateY(.7px) scaleY(.86); }
+  50% { transform: translateY(0) scaleY(1); }
+}
+.sleep .nose { animation: none; }
+
+/* ===== Binky : le saut de joie vrillé ===== */
+.binky #sprite { animation: binkyTwist .6s ease-in-out; transform-origin: 50% 60%; }
+@keyframes binkyTwist {
+  0% { transform: rotate(0) scale(1); }
+  25% { transform: rotate(-16deg) scale(.94, 1.08); }
+  55% { transform: rotate(14deg) scale(1.03, .97); }
+  80% { transform: rotate(-7deg); }
+  100% { transform: rotate(0); }
+}
+.binky .ear { animation: earWiggle .3s ease-in-out 2; }
+.binky #shadow { opacity: .4; transform: scale(.66); }
+
+/* ===== Flop : elle fond sur place quand elle est bien ===== */
+.flop #sprite { animation: melt .55s ease-out forwards; }
+@keyframes melt {
+  0% { transform: scale(1, 1); }
+  55% { transform: scale(1.22, .64) translateY(7px); }
+  100% { transform: scale(1.16, .72) translateY(5px); }
+}
+.flop .ear { transform: rotate(-62deg); }
+.flop #ear-r { transform: rotate(-54deg); }
+.flop .eye-open { display: none; }
+.flop .eye-happy { display: block; }
+.flop .nose { animation: none; }
+
+/* ===== Toilette : elle se lave le museau (pose dressée R3) ===== */
+.groom .arm.l { animation: washL .42s ease-in-out infinite; }
+.groom .arm.r { animation: washR .42s ease-in-out infinite; }
+@keyframes washL { 0%, 100% { transform: translateY(2px) rotate(-6deg); } 50% { transform: translateY(-6px) rotate(8deg); } }
+@keyframes washR { 0%, 100% { transform: translateY(2px) rotate(6deg); } 50% { transform: translateY(-6px) rotate(-8deg); } }
+.groom #head2 { animation: washHead .42s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+@keyframes washHead { 0%, 100% { transform: rotate(0) translateY(0); } 50% { transform: rotate(-4deg) translateY(1px); } }
+
+/* ===== Thump : coup de patte agacé ===== */
 .twitch #ear-l { animation: twitch .5s ease-in-out; }
 .twitch-r #ear-r { animation: twitch .5s ease-in-out; }
 @keyframes twitch {
