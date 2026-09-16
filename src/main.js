@@ -831,7 +831,8 @@ function pet() {
 async function pollForeground() {
   const fg = await invoke("foreground_info").catch(() => null);
   const t = now();
-  if (CFG.scrollOn && fg && fg.title !== "Boune" && CFG.scrollPatterns.test(fg.title)) {
+  const hay = fg ? ((fg.title || "") + " " + (fg.url || "")).toLowerCase() : "";
+  if (CFG.scrollOn && fg && fg.title !== "Boune" && CFG.scrollPatterns.test(hay)) {
     if (scroll.hwnd !== fg.hwnd) scroll.sec = 0;
     scroll.hwnd = fg.hwnd;
     scroll.sec += CFG.fgPollMs / 1000;

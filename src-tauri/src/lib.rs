@@ -14,6 +14,7 @@ use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 pub struct ForegroundInfo {
     pub hwnd: isize,
     pub title: String,
+    pub url: String,
     pub x: i32,
     pub y: i32,
     pub w: i32,
@@ -24,6 +25,14 @@ pub struct ForegroundInfo {
 mod native {
     use super::ForegroundInfo;
     use windows::Win32::Foundation::{HWND, RECT};
+    use windows::Win32::System::Com::{
+        CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED,
+    };
+    use windows::Win32::System::Variant::VARIANT;
+    use windows::Win32::UI::Accessibility::{
+        CUIAutomation, IUIAutomation, IUIAutomationValuePattern, TreeScope_Descendants,
+        UIA_ControlTypePropertyId, UIA_EditControlTypeId, UIA_ValuePatternId,
+    };
     use windows::Win32::UI::WindowsAndMessaging::{
         GetForegroundWindow, GetWindowRect, GetWindowTextW, IsIconic, IsWindow, ShowWindow,
         SW_MINIMIZE,
@@ -43,11 +52,41 @@ mod native {
             Some(ForegroundInfo {
                 hwnd: hwnd.0 as isize,
                 title,
+                url: url_of(hwnd).unwrap_or_default(),
                 x: rect.left,
                 y: rect.top,
                 w: rect.right - rect.left,
                 h: rect.bottom - rect.top,
             })
+        }
+    }
+
+    /// Lit l'URL affichée dans la barre d'adresse d'un navigateur au premier plan,
+    /// via l'API d'accessibilité UI Automation (lecture seule). Renvoie None si
+    /// la fenêtre n'est pas un navigateur ou si quoi que ce soit échoue.
+    fn url_of(hwnd: HWND) -> Option<String> {
+        unsafe {
+            // MTA ; ignore l'erreur si déjà initialisé dans un autre mode.
+            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+            let automation: IUIAutomation =
+                CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).ok()?;
+            let root = automation.ElementFromHandle(hwnd).ok()?;
+            let cond = automation
+                .CreatePropertyCondition(
+                    UIA_ControlTypePropertyId,
+                    &VARIANT::from(UIA_EditControlTypeId.0),
+                )
+                .ok()?;
+            let edit = root.FindFirst(TreeScope_Descendants, &cond).ok()?;
+            let value: IUIAutomationValuePattern =
+                edit.GetCurrentPatternAs(UIA_ValuePatternId).ok()?;
+            let bstr = value.CurrentValue().ok()?;
+            let s = bstr.to_string();
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
         }
     }
 
