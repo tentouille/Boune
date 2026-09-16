@@ -1,0 +1,262 @@
+/* ===== Base : fenêtre transparente, rien ne doit être visible sauf Boune ===== */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+.hidden { display: none !important; }
+
+#stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* ===== Personnage ===== */
+#bunny {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  width: 110px;
+  height: 120px;
+  margin-left: -55px;
+  cursor: grab;
+  transform-origin: 50% 100%;
+}
+#bunny.facing-left { transform: scaleX(-1); }
+#bunny.held { cursor: grabbing; }
+
+#sprite {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 100%;
+  will-change: transform;
+}
+#svg { display: block; pointer-events: auto; }
+
+#shadow {
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  width: 80px;
+  height: 10px;
+  margin-left: -40px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.18);
+  filter: blur(2px);
+  pointer-events: none;
+  transition: transform .2s, opacity .2s;
+}
+
+/* Oreilles : pivot à la base */
+.ear {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transition: transform .35s ease;
+}
+
+/* Yeux : un seul style visible à la fois */
+#eyes { transition: transform .15s; }
+.eye-closed, .eye-happy, .eye-angry { display: none; }
+.sleep .eye-open, .blink .eye-open { display: none; }
+.sleep .eye-closed, .blink .eye-closed { display: block; }
+.happy .eye-open, .happy .eye-closed { display: none; }
+.happy .eye-happy { display: block; }
+.angry .eye-open, .angry .eye-closed, .angry .eye-happy { display: none; }
+.angry .eye-angry { display: block; }
+
+.acc { display: none; }
+.acc.on { display: block; }
+
+/* ===== États / animations ===== */
+.idle #sprite { animation: breathe 3.2s ease-in-out infinite; }
+@keyframes breathe {
+  0%, 100% { transform: scale(1, 1); }
+  50%      { transform: scale(1.015, 0.985); }
+}
+
+.walk #sprite, .mission #sprite, .chase #sprite { animation: hop .42s ease-in-out infinite; }
+.mission #sprite { animation-duration: .3s; }
+@keyframes hop {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  30%      { transform: translateY(-16px) scale(0.95, 1.07); }
+  65%      { transform: translateY(0) scale(1.07, 0.93); }
+}
+.walk #shadow, .mission #shadow, .chase #shadow { animation: shadowHop .42s ease-in-out infinite; }
+.mission #shadow { animation-duration: .3s; }
+@keyframes shadowHop {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  30%      { transform: scale(.8); opacity: .6; }
+}
+.walk .ear, .chase .ear, .mission .ear { animation: earBob .42s ease-in-out infinite; }
+@keyframes earBob {
+  0%, 100% { transform: rotate(0deg); }
+  40%      { transform: rotate(-8deg); }
+}
+#ear-r.ear { animation-delay: .05s; }
+
+.twitch #ear-l { animation: twitch .5s ease-in-out; }
+.twitch-r #ear-r { animation: twitch .5s ease-in-out; }
+@keyframes twitch {
+  0%, 100% { transform: rotate(0); }
+  30% { transform: rotate(-14deg); }
+  60% { transform: rotate(8deg); }
+}
+
+.sleep #sprite { animation: breatheSleep 4.5s ease-in-out infinite; }
+@keyframes breatheSleep {
+  0%, 100% { transform: scale(1, 1) translateY(0); }
+  50%      { transform: scale(1.03, 0.97) translateY(2px); }
+}
+.sleep #ear-l { transform: rotate(-32deg); }
+.sleep #ear-r { transform: rotate(32deg); }
+
+.happy #sprite { animation: joy .35s ease-in-out 4; }
+@keyframes joy {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-9px) scale(1.04, .98); }
+}
+.happy .ear { animation: earWiggle .35s ease-in-out 4; }
+@keyframes earWiggle {
+  0%, 100% { transform: rotate(0); }
+  50% { transform: rotate(-12deg); }
+}
+.happy #ear-r { animation-delay: .17s; }
+
+.held #sprite { animation: sway 1.4s ease-in-out infinite; transform-origin: 50% 20%; }
+@keyframes sway {
+  0%, 100% { transform: rotate(-6deg); }
+  50%      { transform: rotate(6deg); }
+}
+.held .ear { transform: rotate(0deg); }
+.held #feet { animation: dangle .7s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 0; }
+@keyframes dangle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(3px); }
+}
+.held #shadow, .fall #shadow { opacity: 0; }
+
+.fall #sprite { transform: scale(0.95, 1.08); }
+.fall .ear { transform: rotate(0) translateY(-4px); }
+
+.land #sprite { animation: squash .3s ease-out; }
+@keyframes squash {
+  0%   { transform: scale(1.2, 0.78); }
+  60%  { transform: scale(0.94, 1.06); }
+  100% { transform: scale(1, 1); }
+}
+
+.nibble #head { animation: nom .22s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 80%; }
+@keyframes nom {
+  0%, 100% { transform: rotate(0) translateY(0); }
+  50%      { transform: rotate(3deg) translateY(1.5px); }
+}
+
+.push #sprite { animation: push .35s ease-in-out infinite; }
+@keyframes push {
+  0%, 100% { transform: rotate(-14deg) translateX(0); }
+  50%      { transform: rotate(-17deg) translateX(6px); }
+}
+.push .ear { transform: rotate(-20deg); }
+
+.surprised #sprite { animation: startle .25s ease-out 2; }
+@keyframes startle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px) scale(.96, 1.06); }
+}
+.surprised .ear { transform: rotate(0) translateY(-3px); }
+
+/* ===== Objets à grignoter ===== */
+#prop {
+  position: absolute;
+  left: 60px;
+  bottom: 6px;
+  width: 70px;
+  height: 34px;
+  pointer-events: none;
+}
+#prop svg { width: 100%; height: 100%; display: block; }
+#prop.hidden { display: none; }
+
+/* ===== Zzz ===== */
+#zzz {
+  position: absolute;
+  left: 80px;
+  top: 20px;
+  pointer-events: none;
+  font-weight: 700;
+  color: #9b8fb0;
+  text-shadow: 0 0 3px #fff, 0 0 6px #fff;
+}
+#zzz span {
+  position: absolute;
+  opacity: 0;
+  animation: zz 2.4s ease-out infinite;
+}
+#zzz span:nth-child(1) { font-size: 12px; animation-delay: 0s; }
+#zzz span:nth-child(2) { font-size: 15px; animation-delay: .8s; }
+#zzz span:nth-child(3) { font-size: 18px; animation-delay: 1.6s; }
+@keyframes zz {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  20%  { opacity: .9; }
+  100% { transform: translate(18px, -34px); opacity: 0; }
+}
+.facing-left #zzz, .facing-left #prop { transform: scaleX(-1); }
+
+/* ===== Bulle de texte ===== */
+#bubble {
+  position: absolute;
+  left: 50%;
+  bottom: 138px;
+  transform: translateX(-50%);
+  max-width: 210px;
+  padding: 7px 11px;
+  background: #fff;
+  color: #4a3a42;
+  border: 2px solid #ffc9d6;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.3;
+  text-align: center;
+  box-shadow: 0 3px 10px rgba(0,0,0,.12);
+  pointer-events: none;
+  animation: pop .22s cubic-bezier(.3,1.6,.6,1);
+  z-index: 5;
+}
+#bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  margin-left: -6px;
+  border: 6px solid transparent;
+  border-top-color: #ffc9d6;
+  border-bottom: 0;
+}
+#bubble.hidden { display: none; }
+@keyframes pop {
+  from { transform: translateX(-50%) scale(.6); opacity: 0; }
+  to   { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
+/* ===== Effets (cœurs, étoiles) ===== */
+#fx { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+#fx span {
+  position: absolute;
+  bottom: 100px;
+  font-size: 16px;
+  animation: floatUp 1.4s ease-out forwards;
+}
+@keyframes floatUp {
+  0%   { transform: translateY(0) scale(.5); opacity: 0; }
+  20%  { opacity: 1; transform: translateY(-10px) scale(1.1); }
+  100% { transform: translateY(-70px) scale(1); opacity: 0; }
+}

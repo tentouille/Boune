@@ -1,0 +1,14 @@
+{
+  "name": "boune",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Boune — petit lapin compagnon qui se balade sur ton écran",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
