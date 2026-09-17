@@ -63,53 +63,54 @@ function applySettings(s) {
 try { applySettings(JSON.parse(localStorage.getItem(SETTINGS_KEY))); } catch {}
 
 // ----- Répliques -----
+// Boune parle peu : émojis, ponctuation, quelques onomatopées
 const SAY = {
-  hello: ["Coucou ! Je suis Boune 🐰", "Re-coucou !", "Me revoilà !"],
-  pet: ["Hihi ♥", "Encore !", "*ronron de lapin*", "Tu es gentil ♥", "Mes oreilles ! ♥", "♥ ♥ ♥", "*ferme les yeux de bonheur*"],
-  petSpam: ["Doucement !", "Ça chatouille !", "Hé ho !", "*s'ébouriffe*"],
-  wake: ["Mmh... encore 5 minutes...", "Zzz... hein ?!", "*baille* ... quoi ?", "J'étais en plein rêve de carottes..."],
-  sleepy: ["*baille*", "Je vais faire une petite sieste...", "Zzz...", "*s'installe confortablement*"],
-  idle: ["*renifle*", "...", "*se gratte l'oreille*", "Il fait beau dehors ?", "*regarde le curseur*", "*remue le nez*", "Tu travailles bien ?", "*fixe le vide*"],
-  chase: ["?", "C'est quoi ça ?", "*chasse le curseur*", "Attrapé ! ...ou pas.", "*renifle le curseur*"],
-  held: ["Hé !", "Repose-moi !", "Wooo", "*pattes qui pendouillent*", "Où on va ?"],
-  land: ["*pouf*", "Ouf.", "*s'ébroue*", "Encore !"],
-  poop: ["*plop*", "...pardon.", "*sifflote*", "C'est naturel.", "Cadeau !"],
-  drink: ["*lape lape lape*", "*boit à petites gorgées*", "Fraîche !"],
-  eat: ["*crounch crounch*", "*mâchonne du foin*", "*miam* du foin !", "*trie les granulés*"],
-  treat: ["Une friandise ! ♥", "*croque* mmmh !", "Encore une ?", "*yeux qui brillent*"],
-  chew: ["*ronge la branche*", "*grignote* c'est mieux qu'un câble.", "*croque* ...bon, presque."],
-  bed: ["*s'installe dans son panier*", "Mon panier ♥", "*tourne trois fois et se couche*"],
-  bought: (n) => `Oh ! ${n} ! ✨`,
-  flop: ["*se laisse tomber sur le flanc*", "*floomf*", "Trop bien, là...", "*totalement ramollie*", "*fond dans le sol*"],
-  zoom: ["*ZOOMIES*", "WIIIII", "*part en trombe*", "Attrape-moi !", "*fait trois fois le tour*"],
-  chin: ["*frotte son menton* à moi.", "Marqué. C'est à moi maintenant.", "*chinning intensif*", "Ça sent le lapin, ici."],
-  thump: ["*THUMP*", "*tape du pied*", "Grrr.", "*coup de patte agacé*"],
-  groom: ["*se lave le museau*", "*lisse ses oreilles*", "*fait sa toilette*", "Faut rester propre."],
-  solicit: ["Une caresse ? \ud83d\udc49\ud83d\udc48", "*tend la tête vers toi* \u2665", "*quémande des gratouilles*", "*se penche pour un câlin*"],
-  lookout: ["*se dresse* ...", "C'était quoi ce bruit ?", "*scrute l'horizon*", "*oreilles en radar*", "Quelqu'un ?"],
-  back: ["Te revoilà ! ♥", "Tu m'as manqué !", "*saute de joie* Coucou !", "Enfin ! Je m'ennuyais."],
-  scrollAlert: (m) => [`Hé ! Ça fait ${m} min de scroll... 🐰`, `${m} min de Reels ?! Allez, ça suffit.`, `Bon. ${m} minutes. Je m'en occupe.`],
-  scrollDone: ["Et hop, minimisé ! Tu peux le reprendre, promis 😌", "Voilà. Ta cervelle me dira merci.", "*époussette ses pattes* Fait."],
-  scrollAbort: ["Bon, d'accord...", "Ah, tu as changé toi-même. Parfait."],
-  levelUp: (l) => `Niveau ${l} ! ✨`,
-  unlock: { 3: "Une écharpe ! Trop chou 🧣", 5: "Un nœud ! Je suis magnifique 🎀", 8: "Une couronne de fleurs ! 🌸" },
+  hello: ["🐰 !", "👋", "🐰 ♥"],
+  pet: ["♥", "♥ ♥ ♥", "😌", "🥰", "✨ ♥", "😊", "♥ !"],
+  petSpam: ["! !", "😤", "💢", "😵‍💫"],
+  wake: ["... ?", "😴 ?!", "🥱", "🥕... 💭"],
+  sleepy: ["🥱", "💤", "Zzz...", "😪"],
+  idle: ["...", "👃", "🌤️ ?", "👀", "🍃", "🎵 ~", "?", "💭"],
+  chase: ["?", "?!", "👀 !", "😼", "👃 ?"],
+  held: ["!", "!!", "😳", "🙃", "... ?"],
+  land: ["pouf", "😮‍💨", "💨", "!"],
+  poop: ["💩", "...", "🎵", "🙈", "🎁 !"],
+  drink: ["💧", "💧 💧", "😋"],
+  eat: ["crounch", "🌾", "😋 🌾", "🌾 ?"],
+  treat: ["🍪 ♥", "😋 !", "🍪 ?", "🤩"],
+  chew: ["🪵", "crounch", "🪵 ...🔌 ?"],
+  bed: ["🛏️ ♥", "😌 🛏️", "💤 ♥"],
+  bought: (n) => `${n} ! ✨`,
+  flop: ["floomf", "😌", "🫠", "...", "💆"],
+  zoom: ["💨 !", "WIIII", "💨💨💨", "!!!", "🌀"],
+  chin: ["😤 ✓", "✓", "😼 ✓", "🐰 ✓"],
+  thump: ["THUMP", "💢", "😠", "💢 !"],
+  groom: ["🧼", "✨", "🛁", "✨ 🐰"],
+  solicit: ["♥ ?", "🥺", "🥺 👉👈", "♥ ... ?"],
+  lookout: ["!", "... ?", "👀", "📡", "?!"],
+  back: ["♥ !", "🥹", "🐰 ♥ !", "👋 !"],
+  scrollAlert: (m) => [`${m} min ?! 😠`, `📱 ${m} min... 💢`, `${m} min ! 😤`],
+  scrollDone: ["✓ 😌", "✓ ✨", "😤 ✓"],
+  scrollAbort: ["... 😶", "✓ ?"],
+  levelUp: (l) => `Niv. ${l} ! ✨`,
+  unlock: { 3: "🧣 !", 5: "🎀 !", 8: "🌸 !" },
 };
 
 const NIBBLES = [
-  { text: "*crunch* ...oups, c'était important ce câble ?", svg: cable("#4a5568") },
-  { text: "*grignote* ...ta souris marche encore ?", svg: cable("#6b7280") },
-  { text: "*crounch crounch* 🥕", svg: carrot() },
-  { text: "*miam* c'était à toi ce cookie ? 🍪", svg: cookie() },
-  { text: "*mâchouille le câble d'alim* ...ça pique un peu.", svg: cable("#1f2937") },
-  { text: "*grignote un coin de la barre des tâches*", svg: cable("#3b82f6") },
+  { text: "crunch... 🔌 ?", svg: cable("#4a5568") },
+  { text: "🖱️ ... 😬", svg: cable("#6b7280") },
+  { text: "crounch 🥕", svg: carrot() },
+  { text: "🍪 ? 😋", svg: cookie() },
+  { text: "🔌 ⚡ !", svg: cable("#1f2937") },
+  { text: "crounch...", svg: cable("#3b82f6") },
 ];
 
 // Activités longues : Boune s'occupe un moment, un clic l'interrompt
 const ACTIVITIES = [
-  { start: "*ouvre un livre*", end: "*referme le livre* ...la fin était triste.", svg: book(), fx: null, dur: [60e3, 180e3] },
-  { start: "*met de la musique*", end: "*range son casque* Ça donne la pêche !", svg: radio(), fx: "♪", dur: [60e3, 150e3] },
-  { start: "*plante une carotte*", end: "*arrose la carotte* Elle poussera un jour.", svg: sprout(), fx: null, dur: [50e3, 120e3] },
-  { start: "*regarde par la fenêtre*", end: "*soupire* Il y avait un oiseau.", svg: null, fx: null, dur: [40e3, 90e3] },
+  { start: "📖", end: "📖 ... 🥲", svg: book(), fx: null, dur: [60e3, 180e3] },
+  { start: "🎧", end: "🎧 ✓ 💪", svg: radio(), fx: "♪", dur: [60e3, 150e3] },
+  { start: "🥕 🌱", end: "🌱 💧", svg: sprout(), fx: null, dur: [50e3, 120e3] },
+  { start: "🪟 👀", end: "🐦 ...", svg: null, fx: null, dur: [40e3, 90e3] },
 ];
 function book() {
   return `<svg viewBox="0 0 80 34"><path d="M20 6 h22 v24 h-22 z" fill="#fde68a" stroke="#d6a84a"/><path d="M42 6 h22 v24 h-22 z" fill="#fef3c7" stroke="#d6a84a"/><path d="M25 12 h12 M25 17 h12 M25 22 h9 M47 12 h12 M47 17 h12" stroke="#c7b27a" stroke-width="1.2"/></svg>`;
@@ -242,6 +243,7 @@ function setFacing(dir) {
 }
 function say(text, ms = 2600) {
   el.bubble.textContent = text;
+  el.bubble.classList.toggle("big", [...text].length <= 6);
   el.bubble.classList.remove("hidden");
   el.bubble.style.animation = "none";
   void el.bubble.offsetWidth; // relance l'anim pop
@@ -605,7 +607,7 @@ function poop() {
 listen("collect", ({ payload }) => {
   save.crottes += payload.n || 1;
   persist();
-  if (Math.random() < 0.25 && state === "idle") say("Merci de ramasser ♥", 1600);
+  if (Math.random() < 0.25 && state === "idle") say("♻️ ♥", 1600);
 });
 listen("scene-changed", ({ payload }) => { furniture = payload.placed || []; });
 listen("raise-boune", () => win.setAlwaysOnTop(true).catch(() => {}));
@@ -890,7 +892,7 @@ listen("reset-progress", () => {
   persist();
   emit("scene-reset");
   applyAccessories();
-  say("Tout oublié... on recommence ? 🐰", 3000);
+  say("🔄 🐰", 3000);
 });
 
 // ----- Menu de la barre système -----
@@ -907,7 +909,7 @@ listen("tray", ({ payload }) => {
         setWinPos(clamp(cursor.x - W / 2, minX, maxX), ground);
       });
       setState("surprised");
-      say("Téléportée !", 1500);
+      say("✨ !", 1500);
       stateTimer = setTimeout(() => { setState("idle"); nextThink = now() + 2000; }, 600);
       break;
     case "stats": {
