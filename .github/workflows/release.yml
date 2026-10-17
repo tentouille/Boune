@@ -1,44 +1,64 @@
+# Construit Boune sur Windows et publie la release « latest » (liens stables
+# utilisés par tentouille.fr/boune). Durci pour un dépôt public :
+# - actions épinglées sur un commit précis (une étiquette peut être déplacée) ;
+# - droits minimaux, jeton non conservé après le checkout ;
+# - dépendances installées depuis le lockfile (npm ci, cargo --locked) ;
+# - empreintes SHA-256 publiées avec les installeurs, pour les vérifier.
 name: Build & Release
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   workflow_dispatch:
 
-permissions:
-  contents: write
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write   # publier la release, rien d'autre
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: src-tauri
 
       - name: Install deps
-        run: npm install
+        run: npm ci
 
       - name: Build Tauri app
-        run: npx tauri build
+        run: npx tauri build -- --locked
 
-      - name: Prepare release assets (noms fixes)
+      - name: Prepare release assets (noms fixes + empreintes)
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item src-tauri/target/release/bundle/msi/*.msi        dist/Boune-x64.msi
           Copy-Item src-tauri/target/release/bundle/nsis/*-setup.exe dist/Boune-x64-setup.exe
+          Get-ChildItem dist -File | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
+          } | Set-Content -Encoding ascii dist/SHA256SUMS.txt
+          Get-Content dist/SHA256SUMS.txt
 
       - name: Publish "latest" release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: latest
           name: Boune — dernière version
           files: |
             dist/Boune-x64.msi
             dist/Boune-x64-setup.exe
+            dist/SHA256SUMS.txt

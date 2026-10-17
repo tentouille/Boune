@@ -53,6 +53,30 @@ src-tauri/      côté natif Rust
 
 La sauvegarde (XP, crottes, objets), la scène (meubles posés) et les réglages sont dans le `localStorage` de la webview, partagé entre les trois fenêtres. Les fenêtres se parlent par événements Tauri (`poop`, `collect`, `shop-buy`, `scene-place`, `scene-changed`…).
 
+## Vie privée
+
+Boune fonctionne entièrement sur ton ordinateur : **aucune connexion réseau, aucun compte, aucune donnée envoyée nulle part**.
+
+Pour l'anti doom-scroll, elle lit toutes les 2 secondes le titre de la fenêtre au premier plan et, si c'est un navigateur, l'adresse affichée (via l'API d'accessibilité de Windows, en lecture seule). Ces informations servent uniquement à comparer avec les mots surveillés, elles ne sont ni enregistrées ni transmises. Elle peut aussi mettre en pause la vidéo du navigateur et couper puis rendre son son (si tu le laisses activé dans les réglages).
+
+Sa progression, ses réglages et ton modèle perso restent dans les données locales de l'application.
+
+## Installer en confiance
+
+Télécharge Boune uniquement depuis les [releases de ce dépôt](https://github.com/tentouille/Boune/releases/latest) ou depuis [tentouille.fr/boune](https://laplace.tentouille.fr/boune). L'installeur est construit par GitHub Actions à partir du code de ce dépôt (voir `.github/workflows/release.yml`).
+
+L'installeur n'est pas signé : Windows SmartScreen affiche « Windows a protégé votre ordinateur ». Clique sur « Informations complémentaires » puis « Exécuter quand même ».
+
+Pour vérifier que le fichier n'a pas été modifié, compare son empreinte avec celle publiée dans `SHA256SUMS.txt` (même release) :
+
+```powershell
+Get-FileHash .\Boune-x64-setup.exe -Algorithm SHA256
+```
+
+## Licence
+
+Boune est gratuite à utiliser, pour tout le monde. Le code et les dessins sont consultables, mais ne peuvent être ni modifiés, ni copiés, ni redistribués sans accord : voir [LICENSE](LICENSE).
+
 ## Idées pour la suite
 
 - Autres animaux (chat, chien) : dupliquer le SVG et les classes d'état.
