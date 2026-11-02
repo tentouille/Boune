@@ -4,6 +4,7 @@ Petit lapin compagnon qui se balade en bas de ton écran. Léger (Tauri 2 : ~35 
 
 ## Ce qu'elle fait
 
+- **En 3D** : Boune est un vrai petit modèle 3D animé par son squelette (oreilles, tête, pattes, paupières), qui se dresse, se lave, grignote, dort… Case « Boune en 3D » dans les Réglages pour revenir au dessin d'origine (utilisé aussi si l'ordinateur n'a pas WebGL).
 - **Se balade** en sautillant sur la barre des tâches, regarde ton curseur, cligne des yeux, remue les oreilles.
 - **Caresse** : clic gauche → cœurs, yeux fermés de bonheur. Trop de clics → elle s'agace.
 - **Porter / lâcher** : glisse-la où tu veux, elle pendouille, puis retombe et rebondit.
@@ -36,13 +37,16 @@ Prérequis : Node 18+, Rust stable, WebView2 (déjà présent sur Windows 10/11)
 ## Réglages
 
 Les réglages courants sont dans la fenêtre **Réglages** (clic droit sur Boune). Les valeurs par défaut et les réglages plus fins sont dans l'objet `CFG` en haut de `src/main.js`.
-Les répliques sont dans `SAY`, les objets à grignoter dans `NIBBLES`, les activités longues dans `ACTIVITIES`.
+Les poses 3D de chaque état sont dans `target()` de `src/boune3d.js`. Les répliques sont dans `SAY`, les objets à grignoter dans `NIBBLES`, les activités longues dans `ACTIVITIES`.
 
 ## Structure
 
 ```
-src/            front (HTML + CSS + JS vanilla, aucune dépendance)
-  index.html    le SVG de Boune
+src/            front (HTML + CSS + JS vanilla, sans étape de build)
+  index.html    le SVG de Boune (dessin d'origine, et repli sans WebGL)
+  boune3d.js    Boune en 3D : charge le modèle et pose son squelette selon l'état
+  models/       boune.glb (modèle 3D, textures réduites à 1024 px)
+  vendor/       three.js r170 et son chargeur glTF (copie locale, licence MIT)
   settings.html fenêtre de réglages + boutique
   scene.html    bande transparente le long de la barre des tâches : meubles et crottes
   style.css     tous les états / animations

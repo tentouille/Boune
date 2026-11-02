@@ -83,6 +83,7 @@ const SAY = {
   bought: (n) => `${n} ! ✨`,
   flop: ["floomf", "😌", "🫠", "...", "💆"],
   zoom: ["💨 !", "WIIII", "💨💨💨", "!!!", "🌀"],
+  binky: ["✨ !", "WIII", "🐰 ✨", "♥ !"],
   chin: ["😤 ✓", "✓", "😼 ✓", "🐰 ✓"],
   thump: ["THUMP", "💢", "😠", "💢 !"],
   groom: ["🧼", "✨", "🛁", "✨ 🐰"],
@@ -673,6 +674,7 @@ async function pollCursor() {
     const dx = clamp((x - centerX()) / L(120), -1, 1) * 2.4 * facing;
     const dy = clamp((y - (pos.y + H - L(60))) / L(200), -1, 1) * 1.8;
     el.eyes.forEach((n) => (n.style.transform = `translate(${dx}px, ${dy}px)`));
+    window.boune3d?.look(dx / 2.4, dy / 1.8);
   }
 
   // Zone cliquable = uniquement le lapin (le reste de la fenêtre est traversé)

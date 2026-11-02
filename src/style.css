@@ -42,6 +42,10 @@ html, body {
 }
 #svg, #svg-up { display: block; pointer-events: auto; position: absolute; inset: 0; }
 #svg-up { display: none; }
+/* Boune en 3D (boune3d.js) : le canvas remplace les deux dessins */
+#gl { display: none; position: absolute; left: -20px; bottom: 0; width: 150px; height: 160px; pointer-events: none; }
+#bunny.three #gl { display: block; }
+#bunny.three #svg, #bunny.three #svg-up { display: none; }
 .upright #svg { display: none; }
 .upright #svg-up { display: block; }
 .arm { transform-box: fill-box; }

@@ -31,3 +31,9 @@ L'auteur ne peut être tenu responsable d'un dommage lié à son
 utilisation.
 
 Pour toute demande : https://tentouille.fr
+
+4. Composants tiers
+
+Le dossier src/vendor contient three.js (https://threejs.org), distribué
+sous licence MIT par ses auteurs ; sa licence est dans
+src/vendor/three.LICENSE. Ce composant reste régi par sa propre licence.
